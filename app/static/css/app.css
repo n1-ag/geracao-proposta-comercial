@@ -241,15 +241,35 @@ code, pre, .mono {
   transition: border-color .12s, background .12s, opacity .12s;
 }
 .btn:hover { border-color: var(--ciano); text-decoration: none; }
-.btn:disabled { opacity: .45; cursor: not-allowed; }
+/* Desabilitado precisa parecer inerte E continuar legível: é o estado do botão
+ * de aprovar enquanto há alerta alto por reconhecer, e o comercial tem que
+ * conseguir ler o que está bloqueado. Baixar a opacidade do gradiente deixaria
+ * o rótulo ilegível, então o primário troca de superfície em vez de desbotar. */
+.btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn:disabled:hover { border-color: rgba(255,255,255,.14); }
 
-.btn.primario {
-  background: var(--grad-primario);
+.btn.primario:disabled {
+  opacity: 1;
+  background: var(--sup-4);
+  color: var(--texto-2);
   border-color: transparent;
-  color: #F3F4F7;
 }
-.btn.primario:hover { filter: brightness(1.1); }
+.btn.primario:disabled:hover { filter: none; }
+
+/* O gradiente radial da marca (--grad-primario) é de superfície grande: numa
+ * pílula de 139px ele comprime numa diagonal dura, e o texto branco sai de
+ * 14:1 sobre o navy para 1,78:1 sobre o ciano — some na metade direita.
+ * Aqui a lógica se inverte: fundo claro da família ciano, texto escuro, e um
+ * gradiente raso entre dois tons próximos, que mantém 9,7:1 → 6,4:1 em toda a
+ * extensão do botão. */
+.btn.primario {
+  background: linear-gradient(100deg, var(--ciano) 0%, var(--ciano-esc) 100%);
+  border-color: transparent;
+  color: #04121A;
+  font-weight: 500;
+}
+.btn.primario:hover { filter: brightness(1.08); }
+.btn.primario:active { filter: brightness(0.94); }
 .btn.perigo { border-color: rgba(224,89,107,.5); color: var(--erro); }
 .btn.pequeno { padding: 5px 13px; font-size: 12.5px; }
 
@@ -272,8 +292,10 @@ code, pre, .mono {
 .badge.gerada     { background: rgba(105,199,240,.14); color: var(--azul-cl); }
 .badge.enviada    { background: rgba(60,203,218,.16); color: var(--ciano); }
 .badge.aceita     { background: rgba(60,218,155,.14); color: var(--ok); }
-.badge.recusada   { background: rgba(224,89,107,.14); color: var(--erro); }
-.badge.erro       { background: rgba(224,89,107,.2);  color: var(--erro); }
+/* O --erro puro sobre o próprio tint dá 4,40:1, logo abaixo do mínimo legível.
+ * Um passo mais claro resolve sem sair da família. */
+.badge.recusada   { background: rgba(224,89,107,.14); color: #F07C8B; }
+.badge.erro       { background: rgba(224,89,107,.2);  color: #F07C8B; }
 
 .badge.executando::before {
   content: "";
