@@ -14,20 +14,27 @@ python3 scripts/precificar.py --simular --converter 50000
 python3 scripts/precificar.py --simular --pacote 26
 python3 scripts/precificar.py --simular --plataforma vtex --horas-adicionais 40
 python3 scripts/precificar.py --simular --plataforma shopify --layout-do-cliente
+python3 scripts/precificar.py --simular --plataforma template-html
 ```
 
 Aritmética de cabeça em conversa vira número citado em proposta. O script lê
-`dados/*.toml`, usa `Decimal` e tem 35 casos golden. Você não tem nada disso.
+`dados/*.toml`, usa `Decimal` e tem 38 casos golden. Você não tem nada disso.
 
 ## O resumo das regras (para reconhecer o caso, não para calcular)
 
 **Implantação — valor base, com design incluso, para o escopo padrão**
-(Home, PLP, PDP, Sobre Nós, Políticas, Checkout):
-WordPress R$ 18.000 · Nuvemshop R$ 22.000 · Shopify R$ 28.000 ·
-Wake R$ 45.000 · VTEX R$ 52.000.
+(Home, PLP, PDP, Sobre Nós, Políticas, Minha conta, Menu de navegação, Filtros,
+Minicart, SEO técnico, Checkout):
+Template HTML R$ 18.000 · WordPress R$ 18.000 · Nuvemshop R$ 22.000 ·
+Shopify R$ 28.000 · Wake R$ 45.000 · VTEX R$ 52.000.
 
-Design embutido, abatido se o cliente entrega o layout: R$ 8.000 em WordPress,
-Nuvemshop e Shopify; R$ 12.000 em Wake e VTEX.
+Design embutido, abatido se o cliente entrega o layout: R$ 8.000 em Template
+HTML, WordPress, Nuvemshop e Shopify; R$ 12.000 em Wake e VTEX.
+
+**Template HTML** é a modalidade sem implantação: UX, layout e templates em
+HTML/CSS/JS responsivos, navegáveis e com a estrutura semântica que o SEO exige
+— o time do cliente aplica no back-end dele. É o caso de plataforma própria ou
+de qualquer stack fora das cinco acima.
 
 Hora adicional: R$ 200. LP institucional, blog e página de serviço: 4h de design
 + 6h de dev por página — as 4h só se o protótipo for da N1.

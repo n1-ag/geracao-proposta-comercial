@@ -259,6 +259,34 @@ espera_horas_adicionais = 0
 espera_alerta = "ITEM_JA_INCLUSO"
 
 [[implantacao]]
+id = "template-html-puro"
+descricao = "Template HTML, escopo padrão, design da N1"
+plataforma = "template-html"
+design_fornecido_pelo_cliente = false
+itens = []
+espera_total = 18000.00
+espera_horas_adicionais = 0
+
+[[implantacao]]
+id = "template-html-layout-do-cliente"
+descricao = "Cliente entrega o Figma: sobra só o front-end, abate R$ 8.000"
+plataforma = "template-html"
+design_fornecido_pelo_cliente = true
+itens = []
+espera_total = 10000.00
+espera_horas_adicionais = 0
+
+[[implantacao]]
+id = "minha-conta-nao-cobra"
+descricao = "Minha conta entrou no escopo padrão; cotá-la como módulo não infla o preço"
+plataforma = "template-html"
+design_fornecido_pelo_cliente = false
+itens = [{ catalogo_id = "minha-conta", quantidade = 1 }]
+espera_total = 18000.00
+espera_horas_adicionais = 0
+espera_alerta = "ITEM_JA_INCLUSO"
+
+[[implantacao]]
 id = "combinado-migracao-vtex"
 descricao = "Migração VTEX: base + catálogo alta (50h) + redirects média (12h) + ERP alta (56h)"
 plataforma = "vtex"

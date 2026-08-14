@@ -27,7 +27,8 @@ valor_hora_adicional = 200
 politica_faixa_horas = "maximo"
 
 # O que já está incluído no valor base de qualquer plataforma.
-escopo_padrao = ["home", "plp", "pdp", "sobre-nos", "politicas", "checkout"]
+escopo_padrao = ["home", "plp", "pdp", "sobre-nos", "politicas", "minha-conta",
+                 "menu-navegacao", "filtros", "minicart", "seo-tecnico", "checkout"]
 
 [implantacao.plataformas.wordpress]
 nome = "WordPress"
@@ -53,6 +54,17 @@ design_embutido = 12000
 nome = "VTEX"
 valor_base = 52000
 design_embutido = 12000
+
+# Entrega de front-end sem implantação: a N1 faz UX, layout e os templates em
+# HTML/CSS/JS responsivos, com a estrutura semântica que o SEO exige, e entrega
+# navegáveis. Quem aplica os templates no back-end é o time do cliente — por
+# isso não há linha de plataforma, integração ou go-live nesta modalidade.
+# Cabe quando a loja roda em plataforma própria ou em qualquer stack fora das
+# cinco acima. O escopo padrão é o mesmo das demais.
+[implantacao.plataformas.template-html]
+nome = "Template HTML"
+valor_base = 18000
+design_embutido = 8000
 
 # Regra especial de página avulsa: vale para LP institucional, blog e página de
 # serviço, POR PÁGINA. As horas de design só entram quando o protótipo é da N1;

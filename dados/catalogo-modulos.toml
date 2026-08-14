@@ -64,6 +64,46 @@ no_escopo_padrao = true
 descricao_proposta = "Trocas e devoluções, privacidade, entrega e termos de uso."
 
 [[itens]]
+id = "menu-navegacao"
+nome = "Menu de navegação"
+categoria = "escopo-padrao"
+unidade = "componente"
+no_escopo_padrao = true
+descricao_proposta = "Menu em múltiplos níveis, com destaques gerenciáveis e versão mobile."
+
+[[itens]]
+id = "filtros"
+nome = "Filtros de navegação"
+categoria = "escopo-padrao"
+unidade = "componente"
+no_escopo_padrao = true
+descricao_proposta = "Filtros com seleção múltipla, estado preservado na URL e versão mobile em drawer."
+
+[[itens]]
+id = "minicart"
+nome = "Minicart"
+categoria = "escopo-padrao"
+unidade = "componente"
+no_escopo_padrao = true
+descricao_proposta = "Minicart lateral com resumo do carrinho, alteração de quantidade e chamada para o checkout."
+
+[[itens]]
+id = "seo-tecnico"
+nome = "SEO técnico"
+categoria = "escopo-padrao"
+unidade = "projeto"
+no_escopo_padrao = true
+descricao_proposta = "Metadados, dados estruturados, canonical, paginação e hierarquia de headings."
+
+[[itens]]
+id = "minha-conta"
+nome = "Minha conta"
+categoria = "escopo-padrao"
+unidade = "fluxo"
+no_escopo_padrao = true
+descricao_proposta = "Login, cadastro, pedidos, dados e endereços no layout da loja."
+
+[[itens]]
 id = "checkout"
 nome = "Checkout"
 categoria = "escopo-padrao"
@@ -166,6 +206,9 @@ horas_baixa = [6, 8]
 horas_media = [10, 14]
 horas_alta = [16, 22]
 criterio_complexidade = """
+O menu em múltiplos níveis com destaques gerenciáveis e versão mobile já entra
+no escopo padrão como `menu-navegacao`, cotado a zero. Só cote este módulo
+quando a exigência ultrapassar isso, e justifique na origem.
 baixa: dois níveis, conteúdo fixo;
 media: três níveis gerenciáveis com imagem de destaque;
 alta: conteúdo dinâmico por categoria, com regra de exibição e versão mobile própria."""
@@ -194,6 +237,9 @@ horas_baixa = [6, 10]
 horas_media = [14, 20]
 horas_alta = [24, 36]
 criterio_complexidade = """
+O filtro padrão — seleção múltipla, estado na URL e drawer no mobile — já entra
+no escopo padrão como `filtros`, cotado a zero. Só cote este módulo quando a
+exigência ultrapassar isso, e justifique na origem o que a ultrapassa.
 baixa: facetas nativas reestilizadas;
 media: filtros múltiplos com estado na URL e versão mobile em drawer;
 alta: facetas derivadas de especificação, faixas dinâmicas e contagem por combinação."""
@@ -292,6 +338,9 @@ horas_baixa = [8, 12]
 horas_media = [16, 24]
 horas_alta = [28, 40]
 criterio_complexidade = """
+O minicart lateral com resumo, quantidade e chamada para o checkout já entra no
+escopo padrão como `minicart`, cotado a zero. Só cote este módulo quando houver
+regra de negócio no carrinho, e justifique na origem qual é.
 baixa: ajuste visual do carrinho nativo;
 media: minicart lateral próprio com upsell e cupom;
 alta: regras de brinde, kits, frete grátis progressivo e validações de negócio."""
@@ -320,7 +369,8 @@ horas_baixa = [8, 12]
 horas_media = [16, 24]
 horas_alta = [30, 44]
 criterio_complexidade = """
-baixa: reestilização da área nativa;
+baixa: blocos ou campos além do padrão na área nativa — a área no layout da loja
+já entra no escopo padrão como `minha-conta`, cotada a zero;
 media: páginas próprias de pedidos, dados e endereços;
 alta: novas abas com dados de sistemas externos (fidelidade, assinatura, crédito)."""
 descricao_proposta = "Área do cliente com pedidos, dados cadastrais e endereços em layout próprio."
@@ -675,6 +725,9 @@ horas_baixa = [6, 8]
 horas_media = [12, 16]
 horas_alta = [20, 30]
 criterio_complexidade = """
+Os fundamentos — metadados, dados estruturados, canonical, paginação e headings —
+já entram no escopo padrão como `seo-tecnico`, cotados a zero. Só cote este
+módulo quando a exigência ultrapassar isso, e justifique na origem.
 baixa: meta tags, títulos e sitemap;
 media: dados estruturados, canonical, paginação e hierarquia de headings;
 alta: SEO facetado, internacionalização e correção de indexação em massa."""

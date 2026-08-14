@@ -30,7 +30,7 @@
 | Campo | Opções |
 |---|---|
 | Modelo da proposta | `implantacao` · `evolucao` · `auto` |
-| Plataforma | `shopify` · `vtex` · `wake` · `nuvemshop` · `wordpress` |
+| Plataforma | `shopify` · `vtex` · `wake` · `nuvemshop` · `wordpress` · `template-html` |
 | Natureza | `migracao` · `novo` · `evolucao` · `auto` |
 | Layout fornecido pelo cliente | `sim` · `nao` |
 

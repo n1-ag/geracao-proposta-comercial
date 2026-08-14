@@ -10,15 +10,28 @@
 
 | Plataforma | Valor base | Design embutido |
 |---|---|---|
+| Template HTML | R$ 18.000 | R$ 8.000 |
 | WordPress | R$ 18.000 | R$ 8.000 |
 | Nuvemshop | R$ 22.000 | R$ 8.000 |
 | Shopify | R$ 28.000 | R$ 8.000 |
 | Wake | R$ 45.000 | R$ 12.000 |
 | VTEX | R$ 52.000 | R$ 12.000 |
 
-O valor base cobre o escopo padrão: Home, PLP, PDP, Sobre Nós, Políticas e
-Checkout (dentro das possibilidades da plataforma). Se o cliente entrega o
-layout, o design embutido é **abatido** do total.
+O valor base cobre o escopo padrão: Home, PLP, PDP, Sobre Nós, Políticas, Minha
+conta, Menu de navegação, Filtros, Minicart, SEO técnico e Checkout (dentro das
+possibilidades da plataforma). Se o cliente entrega o layout, o design embutido
+é **abatido** do total.
+
+Menu, filtros, minicart e SEO técnico entram no valor base **na versão padrão**.
+Os módulos `mega-menu`, `filtros-facetas`, `minicart-carrinho-custom` e
+`seo-tecnico-onpage` continuam cobráveis para o que ultrapassa esse padrão — o
+critério de cada um diz onde fica a fronteira.
+
+**Template HTML** é a modalidade sem implantação: a N1 entrega UX, layout e os
+templates em HTML/CSS/JS responsivos e navegáveis, com a estrutura semântica que
+o SEO exige, e o time do cliente aplica no back-end dele. Vale para plataforma
+própria ou qualquer stack fora das cinco acima. Não há linha de plataforma,
+integração nem go-live nessa modalidade.
 
 Hora adicional: **R$ 200**. LP institucional, blog e página de serviço:
 **4h de design + 6h de dev por página** — as 4h só entram se o protótipo for da

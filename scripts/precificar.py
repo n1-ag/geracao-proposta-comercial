@@ -110,6 +110,24 @@ def resolver_faixa(dados: Dados, horas: int) -> dict:
     return dados.faixas[-1]
 
 
+def tabela_faixas(dados: Dados) -> list:
+    """
+    A tabela de preço por hora, faixa a faixa, já formatada.
+
+    Existe para a proposta poder oferecer **continuidade em evolução depois da
+    entrega** sem que nenhum agente digite um número: o texto referencia
+    `evolucao.tabela_faixas.N.valor_hora_fmt` e o montador resolve. O rótulo
+    também sai em `_fmt` porque ele carrega dígitos ("até 10 h/mês") e
+    `auditar.py numeros` só aceita valores vindos de chave `_fmt`.
+    """
+    return [{
+        "id": f["id"],
+        "rotulo_fmt": f["rotulo"],
+        "valor_hora": num(f["valor_hora"]),
+        "valor_hora_fmt": brl(D(f["valor_hora"])),
+    } for f in dados.faixas]
+
+
 def precificar_pacote(dados: Dados, horas: int) -> dict:
     f = resolver_faixa(dados, horas)
     mensal = D(horas) * D(f["valor_hora"])
@@ -334,6 +352,32 @@ def precificar_implantacao(dados: Dados, escopo: dict) -> dict:
     pz = dados.condicoes["implantacao"]["prazo"]
     semanas = max(pz["semanas_minimas"],
                   math.ceil((pz["horas_base_equivalentes"] + h_tot) / pz["horas_por_semana"]))
+    semanas_max = semanas + pz["folga_semanas"]
+    prazo_origem = "derivado das horas do escopo"
+
+    # Override de prazo: existe porque o prazo às vezes é COMPROMISSO ASSUMIDO na
+    # reunião, e uma proposta que contradiz o que foi dito ao vivo custa caro. Só
+    # vale quando declarado com evidência no 02-escopo.json — e sempre emite
+    # alerta, para nunca passar em silêncio pelo checkpoint humano.
+    ov = escopo.get("prazo_semanas")
+    if ov:
+        if not ov.get("origem"):
+            raise SystemExit("erro: `prazo_semanas` exige `origem` com a evidência [E##] "
+                             "que sustenta o prazo prometido.")
+        semanas, semanas_max = int(ov["min"]), int(ov["max"])
+        if semanas > semanas_max:
+            raise SystemExit(f"erro: `prazo_semanas` com min > max: {semanas} > {semanas_max}")
+        prazo_origem = "declarado no escopo — " + (ov.get("justificativa") or "sem justificativa")
+        derivado = max(pz["semanas_minimas"],
+                       math.ceil((pz["horas_base_equivalentes"] + h_tot) / pz["horas_por_semana"]))
+        alertas.append({
+            "codigo": "PRAZO_DEFINIDO_MANUALMENTE", "severidade": "alta",
+            "mensagem": f"Prazo fixado em {semanas} a {semanas_max} semanas por "
+                        f"{', '.join(ov['origem'])}; a fórmula derivaria "
+                        f"{derivado} a {derivado + pz['folga_semanas']} semanas para "
+                        f"{h_tot}h de adicionais. Confirme a capacidade antes de assinar.",
+        })
+
     pag = dados.condicoes["implantacao"]["pagamento"]
 
     return {
@@ -368,8 +412,9 @@ def precificar_implantacao(dados: Dados, escopo: dict) -> dict:
             "parcela_valor": num(total * D(100 - pag["entrada_pct"]) / D(100) / D(pag["parcelas_restante"])),
             "parcela_valor_fmt": brl(total * D(100 - pag["entrada_pct"]) / D(100) / D(pag["parcelas_restante"])),
             "prazo_semanas_min": semanas,
-            "prazo_semanas_max": semanas + pz["folga_semanas"],
-            "prazo_fmt": f"{semanas} a {semanas + pz['folga_semanas']} semanas",
+            "prazo_semanas_max": semanas_max,
+            "prazo_fmt": f"{semanas} a {semanas_max} semanas",
+            "prazo_origem": prazo_origem,
             "garantia": dados.condicoes["implantacao"]["garantia"]["texto"],
         },
         "alertas": alertas,
@@ -467,6 +512,12 @@ def montar_orcamento(dados: Dados, escopo: dict, ficha: dict, hoje: date) -> dic
             {"campo": "evolucao.valor_mensal",
              "origem": "dados/precos.toml §conversao + §evolucao.faixas"},
         ]
+        if escopo.get("prazo_semanas"):
+            ov = escopo["prazo_semanas"]
+            orc["rastreabilidade"].append({
+                "campo": "implantacao.condicoes.prazo_fmt",
+                "origem": f"proposta/02-escopo.json §prazo_semanas ← {', '.join(ov['origem'])}",
+            })
     else:
         rec = escopo.get("evolucao_solicitada", {}).get("horas_mes")
         if not rec:
@@ -496,6 +547,9 @@ def montar_orcamento(dados: Dados, escopo: dict, ficha: dict, hoje: date) -> dic
 
     if orc["evolucao"].get("aplicavel"):
         cond = dados.condicoes["evolucao"]
+        orc["evolucao"]["tabela_faixas"] = tabela_faixas(dados)
+        if orc["evolucao"].get("faixa_rotulo"):
+            orc["evolucao"]["faixa_rotulo_fmt"] = orc["evolucao"]["faixa_rotulo"]
         orc["evolucao"].setdefault("hora_excedente", num(cond["hora_excedente"]))
         orc["evolucao"].setdefault("hora_excedente_fmt", brl(D(cond["hora_excedente"])))
         orc["evolucao"].setdefault("acumulo_saldo_pct", cond["acumulo_saldo_pct"])
@@ -545,7 +599,8 @@ def orcamento_md(orc: dict) -> str:
               f"- Pagamento: {imp['condicoes']['parcelamento']} "
               f"({imp['condicoes']['entrada_valor_fmt']} + {imp['condicoes']['parcelas_restante']}× "
               f"{imp['condicoes']['parcela_valor_fmt']})",
-              f"- Prazo estimado: {imp['condicoes']['prazo_fmt']}", ""]
+              f"- Prazo estimado: {imp['condicoes']['prazo_fmt']} "
+              f"({imp['condicoes'].get('prazo_origem', 'derivado das horas do escopo')})", ""]
 
     ev = orc.get("evolucao", {})
     if ev.get("aplicavel"):
