@@ -9,6 +9,7 @@ porque não há autenticação — o app é de uso local, na máquina de quem o 
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import queue
@@ -82,10 +83,31 @@ class Handler(BaseHTTPRequestHandler):
 
     def _corpo(self) -> bytes:
         """Lê exatamente Content-Length bytes. rfile.read() sem argumento pendura."""
+        self.corpo_lido = True
         tamanho = int(self.headers.get("Content-Length") or 0)
         if tamanho <= 0:
             return b""
         return self.rfile.read(tamanho)
+
+    def _drenar_corpo(self) -> None:
+        """Descarta o corpo que o handler não leu.
+
+        Em HTTP/1.1 a conexão é reaproveitada. Se um POST manda `{}` e o handler
+        ignora o corpo, esses dois bytes ficam no socket e a requisição seguinte
+        começa a ler neles — a linha de requisição vira `{}GET /... HTTP/1.1` e o
+        servidor responde 501. Drenar aqui resolve para todos os handlers de uma
+        vez, em vez de exigir que cada um se lembre de ler.
+        """
+        if getattr(self, "corpo_lido", False):
+            return
+        tamanho = int(self.headers.get("Content-Length") or 0)
+        restante = tamanho
+        while restante > 0:
+            pedaco = self.rfile.read(min(restante, 65536))
+            if not pedaco:
+                break
+            restante -= len(pedaco)
+        self.corpo_lido = True
 
     def json_do_corpo(self) -> dict:
         bruto = self._corpo()
@@ -139,6 +161,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def despachar(self, metodo: str):
         caminho = self.path.split("?", 1)[0].rstrip("/") or "/"
+        self.corpo_lido = False
         try:
             if caminho == "/" or caminho == "/index.html":
                 return self.servir_estatico("index.html")
@@ -166,6 +189,9 @@ class Handler(BaseHTTPRequestHandler):
             self.responder_erro(
                 ErroHTTP(500, "erro_interno", f"{type(e).__name__}: {e}")
             )
+        finally:
+            with contextlib.suppress(OSError, ValueError):
+                self._drenar_corpo()
 
     def do_GET(self):  # noqa: N802
         self.despachar("GET")

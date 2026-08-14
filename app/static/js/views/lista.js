@@ -3,8 +3,9 @@
 import { api } from '../api.js';
 import { badge, brl, esc, relativo } from '../fmt.js';
 import { ouvir } from '../sse.js';
+import { perguntarExclusao } from '../dialogo.js';
 
-let filtros = { q: '', status: '', comercial: '', plataforma: '' };
+let filtros = { q: '', status: '', comercial: '', plataforma: '', incluir_arquivadas: '' };
 let catalogo = null;
 let cancelar = [];
 
@@ -12,6 +13,11 @@ const NOME_PLATAFORMA = {
   shopify: 'Shopify', vtex: 'VTEX', wake: 'Wake', nuvemshop: 'Nuvemshop',
   wordpress: 'WordPress', 'template-html': 'Template HTML',
 };
+
+const ARQUIVADAS = [
+  ['', 'ativas'],
+  ['1', 'incluir as removidas'],
+];
 
 const ESTADOS = [
   ['', 'todos os estados'],
@@ -46,6 +52,7 @@ export async function montar({ conteudo, acoes }) {
       ${select('f-plataforma',
         [['', 'todas as plataformas'], ...catalogo.plataformas.map((p) => [p.id, p.nome])],
         filtros.plataforma)}
+      ${select('f-arquivadas', ARQUIVADAS, filtros.incluir_arquivadas)}
       <button class="btn pequeno" id="f-limpar">limpar</button>
     </div>
     <div id="resultado"><div class="carregando">carregando…</div></div>`;
@@ -64,6 +71,7 @@ function select(id, opcoes, atual) {
 }
 
 let debounce = null;
+let ultimoResultado = [];
 
 function ligarFiltros(raiz) {
   raiz.querySelector('#f-q').addEventListener('input', (e) => {
@@ -72,16 +80,18 @@ function ligarFiltros(raiz) {
     debounce = setTimeout(recarregar, 250);
   });
   for (const [campo, id] of [['status', '#f-status'], ['comercial', '#f-comercial'],
-                             ['plataforma', '#f-plataforma']]) {
+                             ['plataforma', '#f-plataforma'],
+                             ['incluir_arquivadas', '#f-arquivadas']]) {
     raiz.querySelector(id).addEventListener('change', (e) => {
       filtros[campo] = e.target.value;
       recarregar();
     });
   }
   raiz.querySelector('#f-limpar').addEventListener('click', () => {
-    filtros = { q: '', status: '', comercial: '', plataforma: '' };
+    filtros = { q: '', status: '', comercial: '', plataforma: '', incluir_arquivadas: '' };
     raiz.querySelector('#f-q').value = '';
-    ['#f-status', '#f-comercial', '#f-plataforma'].forEach((s) => { raiz.querySelector(s).value = ''; });
+    ['#f-status', '#f-comercial', '#f-plataforma', '#f-arquivadas']
+      .forEach((s) => { raiz.querySelector(s).value = ''; });
     recarregar();
   });
 }
@@ -94,6 +104,7 @@ async function recarregar() {
     Object.entries(filtros).filter(([, v]) => v)
   );
   const d = await api.get(`/api/propostas?${params}`);
+  ultimoResultado = d.itens;
   alvo.innerHTML = desenhar(d);
   ligarLinhas(alvo);
 }
@@ -109,7 +120,7 @@ function desenhar(d) {
   }
 
   const linhas = d.itens.map((p) => `
-    <tr data-id="${p.id}">
+    <tr data-id="${p.id}" class="${p.arquivada ? 'removida' : ''}">
       <td class="clicavel">
         <div>${esc(p.cliente)}</div>
         ${p.contato ? `<div class="dim pequeno">${esc(p.contato)}</div>` : ''}
@@ -117,6 +128,7 @@ function desenhar(d) {
       <td class="clicavel dim">${esc(NOME_PLATAFORMA[p.plataforma_res || p.plataforma] || '—')}</td>
       <td class="clicavel">
         ${badge(p.status, p.status_comercial)}
+        ${p.arquivada ? '<span class="badge rascunho">removida</span>' : ''}
         ${p.erro_mensagem ? `<div class="pequeno" style="color:var(--erro)">${esc(p.erro_mensagem.slice(0, 70))}</div>` : ''}
       </td>
       <td class="clicavel num">
@@ -125,11 +137,14 @@ function desenhar(d) {
       </td>
       <td class="clicavel dim">${esc(relativo(p.atualizado_em))}</td>
       <td class="acoes-linha">
-        ${p.status === 'aguardando_aprovacao'
-          ? `<a class="btn pequeno primario" href="#/proposta/${p.id}/aprovar">Aprovar</a>` : ''}
-        ${p.pdf_caminho
-          ? `<a class="btn pequeno" href="/api/propostas/${p.id}/pdf" target="_blank">PDF</a>` : ''}
-        ${p.status === 'gerada' ? seletorComercial(p) : ''}
+        ${p.arquivada ? `<button class="btn pequeno" data-restaurar="${p.id}">Trazer de volta</button>` : `
+          ${p.status === 'aguardando_aprovacao'
+            ? `<a class="btn pequeno primario" href="#/proposta/${p.id}/aprovar">Aprovar</a>` : ''}
+          ${p.pdf_caminho
+            ? `<a class="btn pequeno" href="/api/propostas/${p.id}/pdf" target="_blank">PDF</a>` : ''}
+          ${p.status === 'gerada' ? seletorComercial(p) : ''}
+        `}
+        <button class="btn pequeno perigo" data-excluir="${p.id}" title="excluir proposta">×</button>
       </td>
     </tr>`).join('');
 
@@ -162,6 +177,37 @@ function ligarLinhas(raiz) {
       location.hash = `#/proposta/${td.closest('tr').dataset.id}`;
     });
   });
+
+  raiz.querySelectorAll('[data-excluir]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const p = ultimoResultado.find((x) => x.id === Number(b.dataset.excluir));
+      if (!p) return;
+      const escolha = await perguntarExclusao(p);
+      if (!escolha) return;
+      b.disabled = true;
+      const url = escolha === 'purgar'
+        ? `/api/propostas/${p.id}?purgar=1&confirmacao=${encodeURIComponent(p.cliente)}`
+        : `/api/propostas/${p.id}`;
+      try {
+        await api.del(url);
+        recarregar();
+      } catch (err) {
+        alert(err.message);
+        b.disabled = false;
+      }
+    }));
+
+  raiz.querySelectorAll('[data-restaurar]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      try {
+        await api.post(`/api/propostas/${b.dataset.restaurar}/restaurar`);
+        recarregar();
+      } catch (err) {
+        alert(err.message);
+        b.disabled = false;
+      }
+    }));
 
   raiz.querySelectorAll('.sel-comercial').forEach((sel) => {
     sel.addEventListener('change', async () => {

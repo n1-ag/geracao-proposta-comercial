@@ -6,6 +6,7 @@ Importado por `servidor.py` pelo efeito colateral: registrar as rotas.
 from __future__ import annotations
 
 import re
+import shutil
 from urllib.parse import parse_qs, urlparse
 
 import artefatos
@@ -165,7 +166,7 @@ def listar(req):
         f"""SELECT id, slug, cliente, contato, plataforma, plataforma_res, modelo_res,
                    total_cru, total_fmt, total_tipo, status, status_comercial,
                    fase_atual, checkpoint_status, pdf_caminho, erro_mensagem,
-                   criado_em, atualizado_em, arquivada
+                   criado_em, atualizado_em, arquivada, origem
             FROM propostas {filtro}
             ORDER BY atualizado_em DESC LIMIT ? OFFSET ?""",
         (*params, por_pagina, (pagina - 1) * por_pagina),
@@ -305,27 +306,84 @@ def editar(req, pid):
 
 
 @rota("DELETE", r"^/api/propostas/(?P<pid>\d+)$")
-def descartar(req, pid):
-    """Descarte leve: some do app, os arquivos ficam. `?purgar=1` apaga o
-    workspace — é irreversível e por isso precisa ser pedido."""
-    linha = carregar(pid)
-    if linha["status"].startswith("executando"):
-        raise erro_409("em_execucao", "a proposta está executando; cancele na fila antes de descartar")
+def excluir(req, pid):
+    """Exclusão em dois níveis.
 
-    purgar = _query(req).get("purgar") == "1"
+    Sem `?purgar=1`: a proposta sai do app e do painel, mas a linha e os
+    arquivos continuam onde estão. É reversível por `POST .../restaurar`.
+
+    Com `?purgar=1`: apaga a linha (o CASCADE leva alertas, lacunas, ajustes,
+    fases, execuções e histórico) **e** a pasta do workspace, com o PDF dentro.
+    Irreversível, e por isso exige o nome do cliente digitado em
+    `?confirmacao=` — a mesma proteção que `scripts/arquivar.py --limpar` usa
+    no fluxo de terminal.
+    """
+    linha = carregar(pid)
+
+    if linha["status"].startswith("executando") or linha["status"] == "enfileirada":
+        raise erro_409(
+            "em_execucao",
+            "esta proposta está na fila ou executando; cancele na Fila antes de excluir",
+        )
+
+    q = _query(req)
+    purgar = q.get("purgar") == "1"
+
+    if not purgar:
+        with db.transacao():
+            db.atualizar("propostas", linha["id"], {"arquivada": 1, "atualizado_em": db.agora()})
+            db.evento(linha["id"], "excluida", "removida do app; arquivos preservados")
+        return {"ok": True, "purgado": False, "proposta_id": linha["id"]}
+
+    # A partir daqui é irreversível.
+    if (q.get("confirmacao") or "").strip().casefold() != linha["cliente"].strip().casefold():
+        raise erro_400(
+            "confirmacao_incorreta",
+            f"para apagar de vez, confirme digitando o nome do cliente: {linha['cliente']}",
+        )
+
+    # Se ela estiver montada nos singletons, desmonta antes: apagar o workspace
+    # sob os pés deixaria `entrada/`, `proposta/` e `saida/` com os arquivos de
+    # uma proposta que não existe mais, e o `estado.json` apontando para o nada.
+    if ws.montado() == linha["slug"]:
+        outra = db.um(
+            "SELECT slug FROM propostas WHERE id <> ? AND arquivada = 0 "
+            "ORDER BY atualizado_em DESC LIMIT 1",
+            (linha["id"],),
+        )
+        if outra:
+            ws.montar(outra["slug"])
+        else:
+            ws.limpar_singletons()
 
     with db.transacao():
-        db.atualizar("propostas", linha["id"], {"arquivada": 1, "atualizado_em": db.agora()})
-        db.evento(linha["id"], "descartada", "com purga do workspace" if purgar else "arquivada no app")
+        db.executar("DELETE FROM propostas WHERE id = ?", (linha["id"],))
 
-    if purgar:
-        import shutil
+    base = ws.caminho(linha["slug"]).resolve()
+    if base.is_relative_to(cfg.WORKSPACES.resolve()) and base != cfg.WORKSPACES.resolve():
+        shutil.rmtree(base, ignore_errors=True)
 
-        base = ws.caminho(linha["slug"]).resolve()
-        if base.is_relative_to(cfg.WORKSPACES.resolve()) and base != cfg.WORKSPACES.resolve():
-            shutil.rmtree(base, ignore_errors=True)
+    return {"ok": True, "purgado": True, "cliente": linha["cliente"]}
 
-    return {"ok": True, "purgado": purgar}
+
+@rota("POST", r"^/api/propostas/(?P<pid>\d+)/restaurar$")
+def restaurar(req, pid):
+    """Desfaz a exclusão leve."""
+    linha = carregar(pid)
+    if not linha["arquivada"]:
+        return {"ok": True, "proposta": linha}
+
+    if not ws.caminho(linha["slug"]).is_dir():
+        raise erro_409(
+            "workspace_sumiu",
+            "os arquivos desta proposta não estão mais no disco; não há o que restaurar",
+        )
+
+    with db.transacao():
+        db.atualizar("propostas", linha["id"], {"arquivada": 0, "atualizado_em": db.agora()})
+        db.evento(linha["id"], "restaurada", "trazida de volta para o app")
+
+    return {"ok": True, "proposta": db.um("SELECT * FROM propostas WHERE id = ?", (linha["id"],))}
 
 
 @rota("GET", r"^/api/propostas/(?P<pid>\d+)/entrada$")

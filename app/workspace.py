@@ -169,6 +169,20 @@ def recolher() -> str | None:
     return slug
 
 
+def limpar_singletons() -> None:
+    """Esvazia `entrada/`, `proposta/` e `saida/` e marca que nada está montado.
+
+    Usado quando a proposta montada é apagada de vez: deixar os arquivos dela na
+    raiz depois que ela deixou de existir confundiria tanto o app quanto quem
+    abrir o repositório no terminal.
+    """
+    for nome in ENTRADAS:
+        (cfg.SINGLETON_ENTRADA / nome).unlink(missing_ok=True)
+    _espelhar_pasta(cfg.SINGLETON_PROPOSTA.parent / "__inexistente__", cfg.SINGLETON_PROPOSTA)
+    _espelhar_pasta(cfg.SINGLETON_SAIDA.parent / "__inexistente__", cfg.SINGLETON_SAIDA)
+    _marcar_montado(None)
+
+
 def montar(slug: str) -> Path:
     """Coloca a proposta nos singletons. Recolhe a anterior antes, se houver."""
     base = caminho(slug)

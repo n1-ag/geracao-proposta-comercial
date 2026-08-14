@@ -7,6 +7,7 @@
 import { api } from '../api.js';
 import { badge, brl, dataHora, duracao, esc, relativo, rotulo } from '../fmt.js';
 import { ouvir } from '../sse.js';
+import { perguntarExclusao } from '../dialogo.js';
 
 let d = null;
 let id = null;
@@ -105,6 +106,13 @@ function desenhar() {
 }
 
 function faixaEstado(p) {
+  if (p.arquivada) {
+    return `<div class="aviso-faixa info">
+      <strong>Esta proposta foi removida do app.</strong>
+      Ela não aparece no painel nem na listagem, mas os arquivos continuam no disco.
+      <button class="btn pequeno" id="btn-restaurar" style="margin-left:10px">Trazer de volta</button>
+    </div>`;
+  }
   if (p.status === 'erro') {
     return `<div class="aviso-faixa erro">
       <strong>A geração parou.</strong> ${esc(p.erro_mensagem || 'sem detalhe registrado')}
@@ -151,6 +159,7 @@ function cartaoResumo(p) {
     <div class="linha" style="margin-top:14px">
       <a class="btn pequeno" href="#/nova/${id}">Editar cadastro</a>
       <a class="btn pequeno" href="/api/propostas/${id}/exportar">Exportar</a>
+      <button class="btn pequeno perigo" id="btn-excluir">Excluir</button>
     </div>
   </div>`;
 }
@@ -366,6 +375,29 @@ function ligar(raiz, acoes) {
 
   raiz.querySelector('#btn-rerender')?.addEventListener('click', (e) =>
     agir(() => api.post(`/api/propostas/${id}/rerender`), e.target));
+
+  raiz.querySelector('#btn-excluir')?.addEventListener('click', async () => {
+    const escolha = await perguntarExclusao(d.proposta);
+    if (!escolha) return;
+
+    const url = escolha === 'purgar'
+      ? `/api/propostas/${id}?purgar=1&confirmacao=${encodeURIComponent(d.proposta.cliente)}`
+      : `/api/propostas/${id}`;
+    try {
+      await api.del(url);
+      // Apagada de vez não tem tela de detalhe para voltar.
+      location.hash = escolha === 'purgar' ? '#/propostas' : `#/proposta/${id}`;
+      if (escolha !== 'purgar') location.reload();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  raiz.querySelector('#btn-restaurar')?.addEventListener('click', (e) =>
+    agir(async () => {
+      await api.post(`/api/propostas/${id}/restaurar`);
+      location.reload();
+    }, e.target));
 
   raiz.querySelectorAll('[data-comercial]').forEach((b) =>
     b.addEventListener('click', () =>

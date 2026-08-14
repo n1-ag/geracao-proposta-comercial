@@ -869,3 +869,47 @@ select.sel-comercial {
  * perde para qualquer `display` declarado por nós. Sem isto, `.progresso-vivo`
  * (display:flex) continua visível mesmo com hidden. */
 [hidden] { display: none !important; }
+
+/* --------------------------------------------------------------- modal */
+
+.modal-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 8, 20, .72);
+  backdrop-filter: blur(3px);
+}
+.modal {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  background: var(--sup-2);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: var(--r);
+  padding: 22px 24px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.6);
+}
+.modal h2 { margin-bottom: 12px; }
+.modal-corpo { font-size: 13px; line-height: 1.6; color: var(--texto-2); }
+.modal-corpo p { margin: 0 0 10px; }
+.modal-corpo strong { color: var(--texto); }
+.modal-corpo code {
+  background: rgba(255,255,255,.06);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.modal-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Proposta removida do app: continua listável (filtro "incluir as removidas"),
+ * mas visualmente rebaixada para não competir com as ativas. */
+table.lista tr.removida td.clicavel { opacity: .5; }
+table.lista tr.removida:hover td.clicavel { opacity: .75; }
