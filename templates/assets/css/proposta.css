@@ -1,0 +1,474 @@
+/* ============================================================================
+   N1.AG — Proposta Comercial
+   CSS de impressão A4, reconstruído por medição direta dos PDFs originais
+   (Urban Arts 2026-UA-01 e Lojas Pompeia 2026-PMP-01).
+
+   Todas as medidas estão em pontos (pt), a unidade nativa do PDF, para que
+   os valores do arquivo correspondam 1:1 ao que `pdftotext -bbox` reporta.
+   1pt = 1/72", A4 = 595.28 x 841.89pt.
+
+   NÃO edite tamanhos sem re-medir. O `scripts/auditar.py template` valida que
+   nenhuma classe fora deste arquivo apareça no HTML final.
+   ========================================================================= */
+
+/* ---------- Fontes (locais; nada de CDN) ---------------------------------- */
+@font-face { font-family: "Poppins"; font-weight: 400; font-style: normal;
+             src: url("../fonts/Poppins-Regular.ttf")  format("truetype"); font-display: block; }
+@font-face { font-family: "Poppins"; font-weight: 500; font-style: normal;
+             src: url("../fonts/Poppins-Medium.ttf")   format("truetype"); font-display: block; }
+@font-face { font-family: "Poppins"; font-weight: 600; font-style: normal;
+             src: url("../fonts/Poppins-SemiBold.ttf") format("truetype"); font-display: block; }
+@font-face { font-family: "Poppins"; font-weight: 700; font-style: normal;
+             src: url("../fonts/Poppins-Bold.ttf")     format("truetype"); font-display: block; }
+
+/* ---------- Tokens ------------------------------------------------------- */
+:root {
+  --navy:        #0C1F59;   /* fundo escuro, títulos                        */
+  --navy-mid:    #16337F;   /* cartões da capa, elementos decorativos       */
+  --navy-rule:   #22407F;   /* separador dentro do bloco escuro             */
+  --cyan:        #06ADC2;   /* destaques, numeração, marcadores             */
+  --tint:        #F4F7FC;   /* fundo dos cartões claros                     */
+  --tint-border: #DCE4F2;   /* borda do cartão com fundo                    */
+  --border:      #E3E8F2;   /* borda de cartão sem fundo, filetes, tabela   */
+  --flow-line:   #CFDAEC;   /* linha que conecta as etapas do fluxo         */
+  --on-navy:     #C6D2EC;   /* texto corrido sobre fundo escuro             */
+  --ink:         #3A4666;   /* texto corrido sobre fundo claro              */
+
+  --pg-w: 595.28pt;  --pg-h: 841.89pt;
+  --pad:  45.30pt;          /* respiro lateral das páginas de corpo         */
+  --pad-cover: 51.02pt;     /* respiro lateral da capa e do fechamento      */
+  --col:  503.95pt;         /* largura útil das páginas de corpo            */
+  --gap:  16.99pt;          /* vão padrão entre colunas                     */
+  --foot-top: 793.79pt;     /* filete acima do rodapé                       */
+}
+
+/* ---------- Página ------------------------------------------------------- */
+@page { size: A4; margin: 0; }
+
+html, body { margin: 0; padding: 0; }
+
+body {
+  font-family: "Poppins", "DejaVu Sans", sans-serif;
+  font-size: 10pt;
+  line-height: 1.68;
+  color: var(--ink);
+  background: #FFFFFF;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+.page {
+  position: relative;
+  width: var(--pg-w);
+  height: var(--pg-h);
+  overflow: hidden;                 /* garante N páginas para N seções       */
+  background: #FFFFFF;
+  break-after: page;
+  page-break-after: always;
+}
+.page:last-child { break-after: auto; page-break-after: auto; }
+
+/* Área de conteúdo das páginas de corpo. A altura para exatamente no filete
+   do rodapé — é isso que torna o transbordo mensurável em `scrollHeight`.   */
+.body-page {
+  position: absolute;
+  top: 0; left: 0;
+  width: var(--pg-w);
+  height: var(--foot-top);
+  padding: 48.03pt var(--pad) 0;
+  box-sizing: border-box;
+}
+
+/* ---------- Rodapé (absoluto — copie junto ao duplicar a página) --------- */
+.foot {
+  position: absolute;
+  left: var(--pad); right: var(--pad);
+  top: var(--foot-top);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-top: 1.2pt solid var(--border);
+  padding-top: 7.9pt;
+  font-size: 7.2pt;
+  line-height: 1.4;
+  color: #8A94AE;
+}
+.foot .pg { font-weight: 600; color: var(--navy); }
+
+/* ---------- Cabeçalho de seção ------------------------------------------- */
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1.2pt solid var(--border);
+  padding-bottom: 8.5pt;
+  margin: 0 0 20.9pt;
+}
+.sec-head h2 {
+  margin: 0;
+  font-size: 15pt;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--navy);
+  letter-spacing: -0.2pt;
+}
+.sec-num { color: var(--cyan); margin-right: 5.5pt; }
+.sec-kicker {
+  font-size: 8.6pt;
+  line-height: 1;
+  font-weight: 400;
+  color: #7C87A3;
+  text-align: right;
+}
+/* Página de continuação: sem número, com a marca "continuação" na direita. */
+.sec-head.cont .sec-num { display: none; }
+
+/* ---------- Texto corrido ------------------------------------------------ */
+/* O reset é obrigatório: com o escopo em `> p`, um <p> dentro de componente
+   voltaria à margem 1em do navegador.                                       */
+p { margin: 0; }
+.body-page > p { margin: 0 0 9.07pt; }
+.body-page > p:last-child { margin-bottom: 0; }
+
+h3 {
+  margin: 0 0 8pt;
+  font-size: 11.5pt;
+  line-height: 18.9pt;
+  font-weight: 700;
+  color: var(--navy);
+}
+h3 + * { margin-top: 0; }
+
+strong { font-weight: 600; color: var(--navy); }
+.lead  { font-size: 10pt; }
+.fine  { font-size: 8pt;   line-height: 12.4pt;  color: #8A94AE; }
+.fine strong { color: inherit; }
+/* Nota de rodapé de coluna — um ponto maior que o `.fine` do pé da página. */
+.nota  { font-size: 8.6pt; line-height: 13.33pt; color: #8A94AE; margin: 0; }
+/* Nota ancorada na base da área de conteúdo (validade, ressalvas legais).
+   Ancorar por `bottom` em vez de `top` evita transbordo de meia linha.      */
+.pe-pagina { position: absolute; left: var(--pad); right: var(--pad); bottom: 0; margin: 0; }
+
+/* ---------- Capa --------------------------------------------------------- */
+.cover {
+  background: var(--navy);
+  color: #FFFFFF;
+  padding: 0;
+}
+.cover::before {                                  /* faixa ciano do topo     */
+  content: "";
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 39.64pt;
+  background: var(--cyan);
+}
+.cover-inner { position: absolute; inset: 0; padding: 0 var(--pad-cover); }
+
+.cover-logo { position: absolute; top: 88.52pt; left: 53.58pt; width: 124.58pt; }
+.cover-ref  {
+  position: absolute; top: 89.37pt; right: var(--pad-cover);
+  font-size: 8pt; line-height: 1.4; font-weight: 600;
+  letter-spacing: 1.1pt; color: var(--cyan); text-transform: uppercase;
+}
+
+/* Filetes decorativos e o chevron do lado direito da capa. */
+.cover-rule-a, .cover-rule-b {
+  position: absolute; left: 396.37pt; right: 0; height: 1pt;
+  background: var(--navy-mid);
+}
+.cover-rule-a { top: 221.29pt; }
+.cover-rule-b { top: 493.09pt; }
+.cover-chevron {
+  position: absolute; top: 325.16pt; left: 522.88pt;
+  width: 64.06pt; height: 64.06pt;
+  border-top: 1pt solid var(--navy-mid);
+  border-right: 1pt solid var(--navy-mid);
+  transform: rotate(45deg);
+}
+
+.cover-eyebrow {
+  position: absolute; top: 295.47pt; left: var(--pad-cover);
+  font-size: 11pt; line-height: 1; font-weight: 400;
+  letter-spacing: 0.3pt; color: var(--cyan);
+}
+.cover-title {
+  position: absolute; top: 315.03pt; left: var(--pad-cover); right: 180pt;
+  margin: 0;
+  font-size: 29pt; line-height: 33.64pt; font-weight: 700;
+  letter-spacing: -0.5pt; color: #FFFFFF;
+}
+.cover-bar {
+  position: absolute; top: 435.11pt; left: 50.96pt;
+  width: 73.61pt; height: 2.6pt; background: var(--cyan);
+}
+.cover-lead {
+  position: absolute; top: 455.68pt; left: var(--pad-cover); width: 320pt;
+  margin: 0;
+  font-size: 10pt; line-height: 17pt; color: var(--on-navy);
+}
+
+.factbar {
+  position: absolute; top: 731.71pt; left: var(--pad-cover); right: var(--pad-cover);
+  display: flex; gap: 14.16pt;
+}
+.factbar .fact {
+  flex: 1;
+  height: 64.32pt;
+  box-sizing: border-box;
+  background: var(--navy-mid);
+  border-radius: 5pt;
+  padding: 15.1pt 14.2pt 0;
+}
+.fact-label {
+  display: block;
+  font-size: 6.6pt; line-height: 1.4; font-weight: 600;
+  letter-spacing: 1.1pt; text-transform: uppercase; color: var(--on-navy);
+}
+.fact-value {
+  display: block; margin-top: 6.92pt;
+  font-size: 13pt; line-height: 1.4; font-weight: 700; color: #FFFFFF;
+}
+
+/* ---------- Cartões numéricos (.stats) ----------------------------------- */
+.stats { display: flex; gap: 11.33pt; margin: 0 0 31.26pt; }
+.stat {
+  flex: 1;
+  height: 72.54pt;
+  box-sizing: border-box;
+  background: var(--tint);
+  border-top: 2.4pt solid var(--cyan);
+  border-radius: 6pt;
+  padding: 19.7pt 8pt 0;
+  text-align: center;
+}
+.stat-num   { display: block; font-size: 17pt; line-height: 1.4; font-weight: 700; color: var(--navy); }
+.stat-label { display: block; margin-top: 1.5pt; font-size: 7.4pt; line-height: 9.99pt; color: #6E7A99; }
+
+/* ---------- Listas ------------------------------------------------------- */
+ul.bullets, ul.check, ul.cross { list-style: none; margin: 0; padding: 0; }
+
+ul.bullets li, ul.check li, ul.cross li { position: relative; padding-left: 14.23pt; }
+ul.bullets li { margin-bottom: 5.35pt; font-size: 9.6pt; line-height: 14.88pt; }
+ul.bullets li:last-child, ul.check li:last-child, ul.cross li:last-child { margin-bottom: 0; }
+
+ul.bullets li::before {
+  content: ""; position: absolute; left: 0; top: 4.6pt;
+  width: 5.1pt; height: 5.1pt; border-radius: 50%;
+  background: var(--cyan);
+}
+
+/* O ✓ é desenhado em SVG, não em texto: a Poppins não tem o glifo U+2713 e
+   depender de fonte de fallback do sistema é a falha silenciosa clássica.  */
+ul.check li {
+  margin-bottom: 5.35pt;
+  font-size: 9.6pt; line-height: 14.88pt;
+}
+ul.check li::before {
+  content: ""; position: absolute; left: 0; top: 3.9pt;
+  width: 8pt; height: 8pt;
+  background: no-repeat center/contain
+    url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M2 8.6 L6.1 12.7 L14 3.6" fill="none" stroke="%2306ADC2" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+
+ul.cross li {
+  margin-bottom: 5.35pt;
+  font-size: 9.6pt; line-height: 14.88pt;
+  color: #6E7A99;
+}
+ul.cross li::before {
+  content: ""; position: absolute; left: 0; top: 6.9pt;
+  width: 7pt; height: 1.2pt; background: #A9B3C9;
+}
+
+/* Duas colunas de lista dentro do mesmo bloco. */
+ul.two-col { columns: 2; column-gap: var(--gap); }
+ul.two-col li { break-inside: avoid; }
+
+/* ---------- Frentes numeradas (.frente) ---------------------------------- */
+.frente { position: relative; padding-left: 36.85pt; padding-right: 3.2pt; margin-bottom: 22.58pt; }
+.frente:last-child { margin-bottom: 0; }
+.frente-num {
+  position: absolute; left: 0; top: 3.26pt;
+  width: 25.5pt; height: 17.5pt;
+  box-sizing: border-box;
+  background: var(--navy);
+  border-radius: 4pt;
+  font-size: 10pt; line-height: 17.5pt; font-weight: 700;
+  color: #FFFFFF; text-align: center;
+}
+.frente .frente-titulo { margin: 0 0 5pt; font-size: 10pt; line-height: 1.4; font-weight: 700; color: var(--navy); }
+.frente .frente-texto  { margin: 0; font-size: 9pt; line-height: 13.95pt; }
+
+/* ---------- Fluxo horizontal (.flow) ------------------------------------- */
+.flow { position: relative; display: flex; margin: 0 0 21pt; }
+.flow::before {                                   /* linha que conecta       */
+  content: ""; position: absolute;
+  left: 10%; right: 10%; top: 10.8pt;
+  height: 1.4pt; background: var(--flow-line);
+}
+.flow-etapa { position: relative; flex: 1; text-align: center; padding: 0 4pt; }
+.flow-num {
+  position: relative; z-index: 1;
+  display: block; width: 22.65pt; height: 22.65pt; margin: 0 auto 6.4pt;
+  box-sizing: border-box;
+  background: var(--navy); border-radius: 50%;
+  font-size: 8pt; line-height: 22.65pt; font-weight: 700; color: #FFFFFF;
+}
+.flow-titulo { display: block; font-size: 8pt; line-height: 1.4; font-weight: 700; color: var(--navy); }
+.flow-texto  { display: block; margin-top: 2.3pt; font-size: 7.2pt; line-height: 9.72pt; color: #6E7A99; }
+
+/* ---------- Cartões ------------------------------------------------------ */
+.card {
+  box-sizing: border-box;
+  border: 1pt solid var(--border);
+  border-radius: 7pt;
+  padding: 12.1pt 14.2pt 15.7pt;
+  margin-bottom: 15pt;
+}
+.card:last-child { margin-bottom: 0; }
+.card.tint { background: var(--tint); border-color: var(--tint-border); }
+.card.navy { background: var(--navy); border-color: var(--navy); color: var(--on-navy); }
+
+.card .card-titulo { margin: 0 0 7.1pt; font-size: 9.8pt; line-height: 1.4; font-weight: 700; color: var(--navy); }
+.card p      { margin: 0 0 7pt; font-size: 9.6pt; line-height: 14.88pt; }
+.card p:last-child { margin-bottom: 0; }
+.card p + ul.bullets { margin-top: 9pt; }
+
+/* No cartão escuro o <strong> sai em ciano automaticamente — não aplique cor
+   manual (regra herdada do template original).                             */
+.card.navy .card-titulo { color: #FFFFFF; }
+.card.navy strong       { color: var(--cyan); }
+.card.navy ul.bullets li::before { background: var(--cyan); }
+
+.card-sm p { font-size: 8.8pt; line-height: 13.64pt; }
+
+/* ---------- Duas colunas ------------------------------------------------- */
+.two { display: flex; gap: var(--gap); align-items: flex-start; }
+.two > * { flex: 1; min-width: 0; margin-bottom: 0; }
+
+/* ---------- Bloco de preço (.price) -------------------------------------- */
+.price {
+  background: var(--navy);
+  border-radius: 8pt;
+  padding: 17.11pt 16.4pt 15.94pt;
+  margin: 0 0 16.32pt;
+  color: #FFFFFF;
+}
+.price-tag {
+  display: block; width: fit-content;
+  background: var(--cyan);
+  border-radius: 4pt;
+  padding: 5.5pt 10pt 4.7pt;
+  font-size: 7.2pt; line-height: 1; font-weight: 700;
+  letter-spacing: 1.1pt; text-transform: uppercase; color: #FFFFFF;
+}
+.price-linha { display: flex; align-items: flex-start; gap: 17.70pt; margin-top: 13.69pt; }
+.price-valor { display: flex; align-items: baseline; white-space: nowrap; margin-top: 4.72pt; }
+.price-cur   { font-size: 13pt; line-height: 1; font-weight: 700; margin-right: 3.4pt; }
+.price-num   { font-size: 30pt; line-height: 1; font-weight: 700; letter-spacing: -0.8pt; }
+.price-cent  { font-size: 15pt; line-height: 1; font-weight: 700; }
+.price-suf   { font-size: 13pt; line-height: 1; font-weight: 500; margin-left: 4pt; }
+.price-metas { display: flex; gap: 21.51pt; }
+.pm-label    { display: block; font-size: 7.2pt; line-height: 1.4; font-weight: 600;
+               letter-spacing: 1.1pt; text-transform: uppercase; color: var(--on-navy); }
+.pm-valor    { display: block; margin-top: 3.2pt; font-size: 12pt; line-height: 1.4; font-weight: 700; color: #FFFFFF; }
+.price-nota  { margin: 11.45pt 0 0; padding-top: 12.5pt; border-top: 1pt solid var(--navy-rule);
+               font-size: 8.6pt; line-height: 13.33pt; color: var(--on-navy); }
+
+/* ---------- Cartões de plano (fee mensal com 3 opções) ------------------- */
+.planos { display: flex; gap: 12pt; margin: 0 0 18pt; align-items: stretch; }
+.plano {
+  flex: 1; box-sizing: border-box;
+  background: var(--tint);
+  border: 1pt solid var(--tint-border);
+  border-radius: 7pt;
+  padding: 13pt 12pt 14pt;
+  text-align: center;
+}
+.plano.rec { background: var(--navy); border-color: var(--navy); }
+.plano-selo {
+  display: inline-block; margin-bottom: 7pt;
+  background: var(--cyan); border-radius: 3pt; padding: 3.6pt 7pt 3pt;
+  font-size: 6.4pt; line-height: 1; font-weight: 700;
+  letter-spacing: 0.9pt; text-transform: uppercase; color: #FFFFFF;
+}
+.plano.rec .plano-selo { background: var(--cyan); }
+.plano:not(.rec) .plano-selo { visibility: hidden; }
+.plano-horas { display: block; font-size: 13pt; line-height: 1.3; font-weight: 700; color: var(--navy); }
+.plano-valor { display: block; margin-top: 3pt; font-size: 17pt; line-height: 1.25; font-weight: 700; color: var(--navy); }
+.plano-hora  { display: block; margin-top: 4.5pt; font-size: 7.8pt; line-height: 1.4; color: #6E7A99; }
+.plano.rec .plano-horas { color: #FFFFFF; }
+.plano.rec .plano-valor { color: #FFFFFF; }
+.plano.rec .plano-hora  { color: var(--on-navy); }
+
+/* ---------- Tabela de condições ------------------------------------------ */
+table { width: 100%; border-collapse: collapse; margin: 0 0 8.31pt; }
+table td { padding: 7.12pt 0 7.16pt; border-bottom: 1pt solid var(--border); vertical-align: top; }
+td.lbl { font-size: 9.2pt; line-height: 1.4; font-weight: 600; color: var(--navy); }
+td.val { font-size: 9.2pt; line-height: 1.4; text-align: right; white-space: nowrap; }
+.sub   { display: block; margin-top: 2.6pt; font-size: 8.2pt; line-height: 1.4; font-weight: 400; color: #8A94AE; }
+tr.tot td { border-bottom: none; border-top: 1.2pt solid var(--navy); padding-top: 6.62pt; }
+tr.tot td.lbl, tr.tot td.val { font-weight: 700; color: var(--navy); }
+
+/* ---------- Página de fechamento (.close) -------------------------------- */
+.close { background: var(--navy); color: var(--on-navy); }
+.close-inner { position: absolute; inset: 0; padding: 0 var(--pad-cover); }
+.close-title {
+  position: absolute; top: 68.03pt; left: var(--pad-cover); width: 420pt;
+  margin: 0;
+  font-size: 22pt; line-height: 26.4pt; font-weight: 700;
+  letter-spacing: -0.4pt; color: #FFFFFF;
+}
+.close-bar {
+  position: absolute; top: 138.13pt; left: 50.96pt;
+  width: 73.61pt; height: 2.6pt; background: var(--cyan);
+}
+.close-lead {
+  position: absolute; top: 158.09pt; left: var(--pad-cover); width: 340pt;
+  margin: 0;
+  font-size: 10pt; line-height: 15.5pt; color: var(--on-navy);
+}
+
+.passos { position: absolute; top: 249.46pt; left: var(--pad-cover); right: var(--pad-cover);
+          display: flex; gap: 16.98pt; }
+.passo  { flex: 1; border-top: 2pt solid var(--cyan); padding-top: 12.3pt; }
+.passo-num    { display: block; font-size: 8pt; line-height: 1.4; font-weight: 700;
+                letter-spacing: 1.1pt; color: var(--cyan); }
+.passo-titulo { display: block; margin-top: 5.4pt; font-size: 10pt; line-height: 1.4;
+                font-weight: 700; color: #FFFFFF; }
+.passo-texto  { display: block; margin-top: 6.4pt; font-size: 8.2pt; line-height: 12.3pt;
+                color: var(--on-navy); }
+
+.contatos { position: absolute; top: 699.06pt; left: var(--pad-cover); right: var(--pad-cover);
+            display: flex; gap: 22.68pt; }
+.contato  { flex: 1; }
+.contato-label { display: block; font-size: 7.2pt; line-height: 1.4; font-weight: 600;
+                 letter-spacing: 1.1pt; text-transform: uppercase; color: var(--cyan); }
+.contato-valor { display: block; margin-top: 3.8pt; font-size: 11pt; line-height: 1.4;
+                 font-weight: 700; color: #FFFFFF; }
+
+.close-logo { position: absolute; top: 749.68pt; left: 443.72pt; width: 97.38pt; }
+.close-barra {
+  position: absolute; top: 775.27pt; left: var(--pad-cover);
+  font-size: 7pt; line-height: 1.4; font-weight: 600;
+  letter-spacing: 1.1pt; text-transform: uppercase; color: #5C6C96;
+}
+
+/* ---------- Utilitários de respiro ---------------------------------------
+   A regra do boilerplate: espaçamento entre blocos é SEMPRE margin-bottom do
+   bloco anterior, nunca margin-top do seguinte. Margens verticais de irmãos
+   colapsam, e um margin-top menor que o margin-bottom do vizinho simplesmente
+   não tem efeito — o que gera "ajustei e nada mudou".
+   Os valores saem da medição do PDF original; não invente outros.           */
+.mb-0  { margin-bottom: 0 !important; }
+.mb-9  { margin-bottom: 8.90pt !important; }
+.mb-11 { margin-bottom: 10.86pt !important; }
+.mb-15 { margin-bottom: 15.21pt !important; }
+.mb-16 { margin-bottom: 15.81pt !important; }
+.mb-17 { margin-bottom: 17.30pt !important; }
+.mb-19 { margin-bottom: 18.86pt !important; }
+.mb-20 { margin-bottom: 19.60pt !important; }
+
+/* ---------- Modo de depuração (--debug no render_pdf.py) ----------------- */
+body.debug .page      { outline: 1px solid #FF00FF; }
+body.debug .body-page { outline: 1px dashed #00A0FF; }
+body.debug .foot      { outline: 1px dashed #FF8800; }

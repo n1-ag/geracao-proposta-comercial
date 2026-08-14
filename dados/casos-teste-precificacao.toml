@@ -1,0 +1,299 @@
+# =============================================================================
+# Suíte golden da precificação
+#
+# Os valores esperados foram escritos À MÃO, a partir das regras — não copiados
+# da saída do script. É isso que torna a suíte um teste, e não um espelho.
+#
+# Rodar:  python3 scripts/auditar.py precos
+# O orquestrador roda esta suíte ANTES de aceitar a fase 03. Se algum caso
+# falhar, o pipeline aborta: um preço errado é pior do que proposta nenhuma.
+# =============================================================================
+
+[meta]
+versao = "2026.1"
+regra = """
+receita_anual_alvo = valor_implantacao × 1,3
+mensal_alvo        = receita_anual_alvo / 12
+ponto fixo         = para cada faixa, h = mensal_alvo / valor_hora;
+                     aceita a faixa em que h cai dentro dela mesma
+desempate          = a que entrega mais horas
+sem faixa          = piso (horas_min) da faixa superior
+h_final            = round_half_up(h);  mensal_final = h_final × valor_hora
+"""
+
+# -----------------------------------------------------------------------------
+# CONVERSÃO implantação -> evolução
+# -----------------------------------------------------------------------------
+
+# O caso de referência dado pela diretoria. Se este quebrar, nada mais importa.
+[[conversao]]
+id = "referencia-50k"
+descricao = "Caso de referência da regra C"
+valor_implantacao = 50000
+espera_faixa = "20a29"
+espera_valor_hora = 210
+espera_horas = 26
+espera_mensal = 5460.00
+espera_aplicavel = true
+
+[[conversao]]
+id = "wordpress-base"
+descricao = "Menor base do catálogo, cai na primeira faixa"
+valor_implantacao = 18000
+espera_faixa = "ate10"
+espera_valor_hora = 240
+espera_horas = 8
+espera_mensal = 1920.00
+espera_aplicavel = true
+
+[[conversao]]
+id = "nuvemshop-base"
+descricao = "Encosta no teto da primeira faixa"
+valor_implantacao = 22000
+espera_faixa = "ate10"
+espera_valor_hora = 240
+espera_horas = 10
+espera_mensal = 2400.00
+espera_aplicavel = true
+
+[[conversao]]
+id = "shopify-base"
+descricao = "Faixa do meio"
+valor_implantacao = 28000
+espera_faixa = "11a19"
+espera_valor_hora = 220
+espera_horas = 14
+espera_mensal = 3080.00
+espera_aplicavel = true
+
+[[conversao]]
+id = "wake-base"
+descricao = "Terceira faixa"
+valor_implantacao = 45000
+espera_faixa = "20a29"
+espera_valor_hora = 210
+espera_horas = 23
+espera_mensal = 4830.00
+espera_aplicavel = true
+
+[[conversao]]
+id = "vtex-base"
+descricao = "Maior base do catálogo"
+valor_implantacao = 52000
+espera_faixa = "20a29"
+espera_valor_hora = 210
+espera_horas = 27
+espera_mensal = 5670.00
+espera_aplicavel = true
+
+# Bordas -----------------------------------------------------------------------
+
+[[conversao]]
+id = "vale-entre-ate10-e-11a19"
+descricao = "Nenhuma faixa fecha: adota o piso de 11a19"
+valor_implantacao = 22250
+espera_faixa = "11a19"
+espera_valor_hora = 220
+espera_horas = 11
+espera_mensal = 2420.00
+espera_aplicavel = true
+espera_ajuste_de_borda = "vale_entre_faixas"
+
+[[conversao]]
+id = "vale-entre-11a19-e-20a29"
+descricao = "Segundo vale: adota o piso de 20a29"
+valor_implantacao = 38700
+espera_faixa = "20a29"
+espera_valor_hora = 210
+espera_horas = 20
+espera_mensal = 4200.00
+espera_aplicavel = true
+espera_ajuste_de_borda = "vale_entre_faixas"
+
+[[conversao]]
+id = "duas-faixas-fecham"
+descricao = "20a29 e 30mais fecham; desempate escolhe mais horas"
+valor_implantacao = 55900
+espera_faixa = "30mais"
+espera_valor_hora = 200
+espera_horas = 30
+espera_mensal = 6000.00
+espera_aplicavel = true
+espera_desempate = true
+
+[[conversao]]
+id = "valor-baixo-demais"
+descricao = "Abaixo do piso de horas: a alternativa não é oferecida"
+valor_implantacao = 5000
+espera_aplicavel = false
+espera_alerta = "VALOR_MUITO_BAIXO"
+
+[[conversao]]
+id = "valor-muito-alto"
+descricao = "Calcula, mas pede decisão humana"
+valor_implantacao = 300000
+espera_faixa = "30mais"
+espera_valor_hora = 200
+espera_horas = 163
+espera_mensal = 32600.00
+espera_aplicavel = true
+espera_alerta = "VALOR_MUITO_ALTO"
+
+# -----------------------------------------------------------------------------
+# FAIXA DE FEE MENSAL — a tabela B aplicada direto
+# -----------------------------------------------------------------------------
+[[faixa]]
+horas = 1
+espera_faixa = "ate10"
+espera_valor_hora = 240
+espera_mensal = 240.00
+
+[[faixa]]
+horas = 10
+espera_faixa = "ate10"
+espera_valor_hora = 240
+espera_mensal = 2400.00
+
+[[faixa]]
+horas = 11
+espera_faixa = "11a19"
+espera_valor_hora = 220
+espera_mensal = 2420.00
+
+[[faixa]]
+horas = 19
+espera_faixa = "11a19"
+espera_valor_hora = 220
+espera_mensal = 4180.00
+
+[[faixa]]
+horas = 20
+espera_faixa = "20a29"
+espera_valor_hora = 210
+espera_mensal = 4200.00
+
+[[faixa]]
+horas = 29
+espera_faixa = "20a29"
+espera_valor_hora = 210
+espera_mensal = 6090.00
+
+[[faixa]]
+horas = 30
+espera_faixa = "30mais"
+espera_valor_hora = 200
+espera_mensal = 6000.00
+
+[[faixa]]
+horas = 80
+espera_faixa = "30mais"
+espera_valor_hora = 200
+espera_mensal = 16000.00
+
+# -----------------------------------------------------------------------------
+# IMPLANTAÇÃO — base, adicionais e abatimento de design
+# -----------------------------------------------------------------------------
+
+[[implantacao]]
+id = "shopify-puro"
+descricao = "Só o escopo padrão, design da N1"
+plataforma = "shopify"
+design_fornecido_pelo_cliente = false
+itens = []
+espera_total = 28000.00
+espera_horas_adicionais = 0
+
+[[implantacao]]
+id = "shopify-layout-do-cliente"
+descricao = "Cliente entrega o layout: abate os R$ 8.000 de design"
+plataforma = "shopify"
+design_fornecido_pelo_cliente = true
+itens = []
+espera_total = 20000.00
+espera_horas_adicionais = 0
+
+[[implantacao]]
+id = "vtex-layout-do-cliente"
+descricao = "VTEX abate R$ 12.000, não R$ 8.000"
+plataforma = "vtex"
+design_fornecido_pelo_cliente = true
+itens = []
+espera_total = 40000.00
+espera_horas_adicionais = 0
+
+[[implantacao]]
+id = "tres-lps-com-design"
+descricao = "3 LPs com protótipo da N1: 3 × (4h design + 6h dev) = 30h × R$200"
+plataforma = "shopify"
+design_fornecido_pelo_cliente = false
+itens = [{ catalogo_id = "lp-institucional", quantidade = 3, design_pela_n1 = true }]
+espera_total = 34000.00
+espera_horas_adicionais = 30
+
+[[implantacao]]
+id = "tres-lps-sem-design"
+descricao = "Mesmas 3 LPs, layout do cliente: só 6h de dev cada = 18h"
+plataforma = "shopify"
+design_fornecido_pelo_cliente = true
+itens = [{ catalogo_id = "lp-institucional", quantidade = 3, design_pela_n1 = false }]
+espera_total = 23600.00
+espera_horas_adicionais = 18
+
+[[implantacao]]
+id = "erp-media-politica-maximo"
+descricao = "Integração ERP média: faixa [20,28], política 'maximo' -> 28h"
+plataforma = "nuvemshop"
+design_fornecido_pelo_cliente = false
+itens = [{ catalogo_id = "int-erp", complexidade = "media", quantidade = 1 }]
+espera_total = 27600.00
+espera_horas_adicionais = 28
+
+[[implantacao]]
+id = "item-do-escopo-padrao-nao-cobra"
+descricao = "Cotar a Home como adicional não pode inflar o preço"
+plataforma = "wordpress"
+design_fornecido_pelo_cliente = false
+itens = [{ catalogo_id = "home", quantidade = 1 }]
+espera_total = 18000.00
+espera_horas_adicionais = 0
+espera_alerta = "ITEM_JA_INCLUSO"
+
+[[implantacao]]
+id = "combinado-migracao-vtex"
+descricao = "Migração VTEX: base + catálogo alta (50h) + redirects média (12h) + ERP alta (56h)"
+plataforma = "vtex"
+design_fornecido_pelo_cliente = false
+itens = [
+  { catalogo_id = "migracao-catalogo", complexidade = "alta", quantidade = 1 },
+  { catalogo_id = "plano-redirects-301", complexidade = "media", quantidade = 1 },
+  { catalogo_id = "int-erp", complexidade = "alta", quantidade = 1 },
+]
+espera_total = 75600.00
+espera_horas_adicionais = 118
+
+# -----------------------------------------------------------------------------
+# TRÊS OPÇÕES DE PACOTE (proposta de fee mensal nativa)
+# -----------------------------------------------------------------------------
+[[opcoes]]
+id = "recomendado-30"
+horas_recomendadas = 30
+espera_horas = [20, 30, 40]
+espera_recomendado = 30
+
+[[opcoes]]
+id = "recomendado-26-arredonda-para-degrau"
+horas_recomendadas = 26
+espera_horas = [20, 30, 40]
+espera_recomendado = 30
+
+[[opcoes]]
+id = "recomendado-no-primeiro-degrau"
+horas_recomendadas = 8
+espera_horas = [10, 20, 30]
+espera_recomendado = 10
+
+[[opcoes]]
+id = "recomendado-no-ultimo-degrau"
+horas_recomendadas = 70
+espera_horas = [30, 40, 60]
+espera_recomendado = 60

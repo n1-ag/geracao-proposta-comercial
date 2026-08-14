@@ -1,0 +1,737 @@
+# =============================================================================
+# N1.AG — Catálogo de módulos
+#
+# O agente de escopo SÓ pode cotar itens que existam aqui. Item que não existe
+# vai para `itens_fora_catalogo` no 02-escopo.json, o que dispara alerta visível
+# no checkpoint — de propósito: é assim que o catálogo cresce com controle.
+#
+# As faixas são [mínimo, máximo] de horas. A política de qual extremo usar está
+# em precos.toml (`politica_faixa_horas`, hoje "maximo").
+#
+# REVISE OS NÚMEROS. A primeira versão foi calibrada por ordem de grandeza, não
+# por histórico de tarefas da N1.
+#
+# Depois de editar:  python3 scripts/auditar.py precos
+# =============================================================================
+
+[meta]
+versao = "2026.1"
+atualizado_em = "2026-08-13"
+
+# =============================================================================
+# ESCOPO PADRÃO — já incluído no valor base. Custo zero, sempre.
+# Existem no catálogo para que o agente possa registrá-los como "incluso" sem
+# inventar um item novo, e para que o script force valor 0 se alguém cotar.
+# =============================================================================
+[[itens]]
+id = "home"
+nome = "Home"
+categoria = "escopo-padrao"
+unidade = "página"
+no_escopo_padrao = true
+descricao_proposta = "Página inicial com vitrines, banners e blocos gerenciáveis."
+
+[[itens]]
+id = "plp"
+nome = "PLP — listagem de produtos"
+categoria = "escopo-padrao"
+unidade = "template"
+no_escopo_padrao = true
+descricao_proposta = "Listagem de produtos com ordenação, paginação e filtros nativos da plataforma."
+
+[[itens]]
+id = "pdp"
+nome = "PDP — página de produto"
+categoria = "escopo-padrao"
+unidade = "template"
+no_escopo_padrao = true
+descricao_proposta = "Página de produto com galeria, seleção de variações, descrição e chamada de compra."
+
+[[itens]]
+id = "sobre-nos"
+nome = "Sobre Nós"
+categoria = "escopo-padrao"
+unidade = "página"
+no_escopo_padrao = true
+descricao_proposta = "Página institucional da marca."
+
+[[itens]]
+id = "politicas"
+nome = "Páginas de políticas"
+categoria = "escopo-padrao"
+unidade = "conjunto"
+no_escopo_padrao = true
+descricao_proposta = "Trocas e devoluções, privacidade, entrega e termos de uso."
+
+[[itens]]
+id = "checkout"
+nome = "Checkout"
+categoria = "escopo-padrao"
+unidade = "fluxo"
+no_escopo_padrao = true
+descricao_proposta = "Ajuste do checkout dentro das possibilidades de customização da plataforma."
+
+# =============================================================================
+# PÁGINAS E CONTEÚDO
+# =============================================================================
+[[itens]]
+id = "lp-institucional"
+nome = "Landing page institucional"
+categoria = "conteudo"
+unidade = "página"
+regra_especial = "landing_page"
+descricao_proposta = "Landing page com blocos gerenciáveis, seguindo a identidade da marca."
+
+[[itens]]
+id = "blog"
+nome = "Blog"
+categoria = "conteudo"
+unidade = "página"
+regra_especial = "landing_page"
+descricao_proposta = "Listagem e página de post, com categorias e busca interna."
+
+[[itens]]
+id = "pagina-servico"
+nome = "Página de serviço"
+categoria = "conteudo"
+unidade = "página"
+regra_especial = "landing_page"
+descricao_proposta = "Página dedicada a um serviço, com blocos de apresentação e chamada para ação."
+
+[[itens]]
+id = "hotsite-campanha"
+nome = "Hotsite de campanha"
+categoria = "conteudo"
+unidade = "hotsite"
+horas_baixa = [10, 14]
+horas_media = [18, 26]
+horas_alta = [32, 48]
+criterio_complexidade = """
+baixa: página única com blocos do design system existente;
+media: layout próprio, 2 a 4 seções novas e regra de vitrine específica;
+alta: mecânica interativa (quiz, sorteio, contagem), integração ou lógica de elegibilidade."""
+descricao_proposta = "Hotsite de campanha com layout próprio e vitrines segmentadas."
+
+[[itens]]
+id = "pagina-lojas-fisicas"
+nome = "Página de lojas físicas"
+categoria = "conteudo"
+unidade = "página"
+horas_baixa = [6, 8]
+horas_media = [10, 14]
+horas_alta = [16, 24]
+criterio_complexidade = """
+baixa: lista estática de endereços;
+media: busca por cidade/estado com dados gerenciáveis;
+alta: mapa interativo, geolocalização e filtro por serviço disponível."""
+descricao_proposta = "Página com a rede de lojas físicas, endereços e horários."
+
+[[itens]]
+id = "pagina-institucional-extra"
+nome = "Página institucional adicional"
+categoria = "conteudo"
+unidade = "página"
+horas_baixa = [4, 6]
+horas_media = [8, 10]
+horas_alta = [12, 16]
+criterio_complexidade = """
+baixa: texto corrido reaproveitando blocos existentes;
+media: layout próprio com 2 a 3 blocos novos;
+alta: conteúdo dinâmico vindo do CMS ou de API."""
+descricao_proposta = "Página institucional adicional ao escopo padrão."
+
+[[itens]]
+id = "central-ajuda-faq"
+nome = "Central de ajuda / FAQ"
+categoria = "conteudo"
+unidade = "seção"
+horas_baixa = [4, 6]
+horas_media = [8, 12]
+horas_alta = [14, 20]
+criterio_complexidade = """
+baixa: acordeão com perguntas fixas;
+media: categorias e conteúdo gerenciável pelo CMS;
+alta: busca interna, votação de utilidade e integração com o atendimento."""
+descricao_proposta = "Central de ajuda com perguntas frequentes organizadas por tema."
+
+# =============================================================================
+# COMPONENTES E EXPERIÊNCIA
+# =============================================================================
+[[itens]]
+id = "mega-menu"
+nome = "Mega menu"
+categoria = "componente"
+unidade = "componente"
+horas_baixa = [6, 8]
+horas_media = [10, 14]
+horas_alta = [16, 22]
+criterio_complexidade = """
+baixa: dois níveis, conteúdo fixo;
+media: três níveis gerenciáveis com imagem de destaque;
+alta: conteúdo dinâmico por categoria, com regra de exibição e versão mobile própria."""
+descricao_proposta = "Menu de navegação em múltiplos níveis, com destaques gerenciáveis."
+
+[[itens]]
+id = "busca-autocomplete"
+nome = "Busca com autocomplete"
+categoria = "componente"
+unidade = "componente"
+horas_baixa = [8, 10]
+horas_media = [14, 20]
+horas_alta = [24, 36]
+criterio_complexidade = """
+baixa: autocomplete nativo da plataforma, só estilizado;
+media: sugestões de produto e termo com layout próprio;
+alta: motor de busca de terceiro, sinônimos, redirecionamentos e ranking custom."""
+descricao_proposta = "Busca com sugestões em tempo real de produtos, categorias e termos."
+
+[[itens]]
+id = "filtros-facetas"
+nome = "Filtros e facetas"
+categoria = "componente"
+unidade = "componente"
+horas_baixa = [6, 10]
+horas_media = [14, 20]
+horas_alta = [24, 36]
+criterio_complexidade = """
+baixa: facetas nativas reestilizadas;
+media: filtros múltiplos com estado na URL e versão mobile em drawer;
+alta: facetas derivadas de especificação, faixas dinâmicas e contagem por combinação."""
+descricao_proposta = "Filtros de navegação com seleção múltipla e estado preservado na URL."
+
+[[itens]]
+id = "vitrine-recomendacao"
+nome = "Vitrine de recomendação"
+categoria = "componente"
+unidade = "componente"
+horas_baixa = [4, 6]
+horas_media = [8, 12]
+horas_alta = [14, 20]
+criterio_complexidade = """
+baixa: vitrine por coleção fixa;
+media: regra por categoria/produto com fallback;
+alta: alimentada por serviço de recomendação externo, com teste A/B."""
+descricao_proposta = "Vitrine de produtos relacionados com regra de recomendação configurável."
+
+[[itens]]
+id = "banner-carrossel-gerenciavel"
+nome = "Banners e carrossel gerenciáveis"
+categoria = "componente"
+unidade = "componente"
+horas_baixa = [4, 6]
+horas_media = [8, 10]
+horas_alta = [12, 16]
+criterio_complexidade = """
+baixa: banner estático gerenciável;
+media: carrossel com autoplay, versão mobile e agendamento;
+alta: segmentação por público, vídeo e múltiplas áreas clicáveis."""
+descricao_proposta = "Área de banners gerenciável pelo time da marca, com versão mobile própria."
+
+[[itens]]
+id = "compre-junto-kit"
+nome = "Compre junto / kits"
+categoria = "componente"
+unidade = "funcionalidade"
+horas_baixa = [8, 12]
+horas_media = [16, 22]
+horas_alta = [28, 40]
+criterio_complexidade = """
+baixa: sugestão fixa de produtos, sem preço combinado;
+media: kit com desconto e adição conjunta ao carrinho;
+alta: montagem dinâmica pelo cliente, com regra de preço e estoque do conjunto."""
+descricao_proposta = "Sugestão de compra combinada, com adição conjunta ao carrinho."
+
+[[itens]]
+id = "tabela-medidas"
+nome = "Tabela de medidas"
+categoria = "componente"
+unidade = "componente"
+horas_baixa = [3, 4]
+horas_media = [6, 8]
+horas_alta = [10, 14]
+criterio_complexidade = """
+baixa: imagem única em modal;
+media: tabela gerenciável por categoria;
+alta: recomendação de tamanho a partir de dados do cliente."""
+descricao_proposta = "Tabela de medidas em modal, por categoria de produto."
+
+[[itens]]
+id = "lista-desejos"
+nome = "Lista de desejos"
+categoria = "componente"
+unidade = "funcionalidade"
+horas_baixa = [6, 8]
+horas_media = [10, 16]
+horas_alta = [20, 28]
+criterio_complexidade = """
+baixa: app nativo apenas estilizado;
+media: lista persistente por cliente, com página própria;
+alta: múltiplas listas, compartilhamento e aviso de queda de preço."""
+descricao_proposta = "Lista de desejos persistente, com página própria na área do cliente."
+
+[[itens]]
+id = "simulador-frete-pdp"
+nome = "Simulador de frete na PDP"
+categoria = "componente"
+unidade = "componente"
+horas_baixa = [4, 6]
+horas_media = [8, 12]
+horas_alta = [14, 20]
+criterio_complexidade = """
+baixa: consulta simples de CEP com retorno padrão da plataforma;
+media: exibição de prazos por modalidade e retirada em loja;
+alta: consulta a serviço externo com regra de frete grátis e multi-origem."""
+descricao_proposta = "Simulação de prazo e valor de entrega direto na página de produto."
+
+[[itens]]
+id = "minicart-carrinho-custom"
+nome = "Minicart e carrinho customizados"
+categoria = "componente"
+unidade = "fluxo"
+horas_baixa = [8, 12]
+horas_media = [16, 24]
+horas_alta = [28, 40]
+criterio_complexidade = """
+baixa: ajuste visual do carrinho nativo;
+media: minicart lateral próprio com upsell e cupom;
+alta: regras de brinde, kits, frete grátis progressivo e validações de negócio."""
+descricao_proposta = "Minicart lateral e página de carrinho com layout e regras próprios."
+
+[[itens]]
+id = "checkout-customizacao"
+nome = "Customização de checkout"
+categoria = "componente"
+unidade = "fluxo"
+horas_baixa = [8, 12]
+horas_media = [16, 26]
+horas_alta = [32, 48]
+criterio_complexidade = """
+baixa: identidade visual e textos;
+media: campos adicionais, validações e ajustes de etapas permitidos pela plataforma;
+alta: fluxo próprio dentro do que a plataforma libera, com integrações no fechamento."""
+descricao_proposta = "Ajustes de identidade, campos e comportamento no fluxo de checkout."
+
+[[itens]]
+id = "area-cliente-custom"
+nome = "Área do cliente customizada"
+categoria = "componente"
+unidade = "fluxo"
+horas_baixa = [8, 12]
+horas_media = [16, 24]
+horas_alta = [30, 44]
+criterio_complexidade = """
+baixa: reestilização da área nativa;
+media: páginas próprias de pedidos, dados e endereços;
+alta: novas abas com dados de sistemas externos (fidelidade, assinatura, crédito)."""
+descricao_proposta = "Área do cliente com pedidos, dados cadastrais e endereços em layout próprio."
+
+[[itens]]
+id = "login-social"
+nome = "Login social"
+categoria = "componente"
+unidade = "funcionalidade"
+exige_app = true
+horas_baixa = [4, 6]
+horas_media = [8, 10]
+horas_alta = [12, 18]
+criterio_complexidade = """
+baixa: um provedor via app nativo;
+media: dois ou três provedores com unificação de cadastro;
+alta: provedor próprio/SSO ou regra de vinculação de contas existentes."""
+descricao_proposta = "Entrada e cadastro por provedores sociais, com unificação de conta."
+
+[[itens]]
+id = "popup-newsletter"
+nome = "Pop-up e captura de leads"
+categoria = "componente"
+unidade = "componente"
+horas_baixa = [3, 4]
+horas_media = [5, 8]
+horas_alta = [10, 14]
+criterio_complexidade = """
+baixa: pop-up único com gatilho de tempo;
+media: regra por página, frequência e integração com ferramenta de e-mail;
+alta: segmentação por comportamento, cupom único e teste A/B."""
+descricao_proposta = "Captura de leads com regra de exibição e integração com a base de e-mail."
+
+[[itens]]
+id = "multi-idioma-moeda"
+nome = "Multi-idioma e multi-moeda"
+categoria = "componente"
+unidade = "funcionalidade"
+horas_baixa = [10, 16]
+horas_media = [20, 30]
+horas_alta = [36, 56]
+criterio_complexidade = """
+baixa: segundo idioma com conteúdo traduzido manualmente;
+media: alternância de idioma e moeda com URLs e SEO por idioma;
+alta: múltiplos bindings, catálogo e política comercial distintos por região."""
+descricao_proposta = "Loja em mais de um idioma e moeda, com URLs e SEO próprios por região."
+
+[[itens]]
+id = "b2b-atacado-regras"
+nome = "B2B / atacado"
+categoria = "componente"
+unidade = "funcionalidade"
+horas_baixa = [12, 18]
+horas_media = [24, 36]
+horas_alta = [44, 64]
+criterio_complexidade = """
+baixa: tabela de preço distinta para um perfil aprovado;
+media: cadastro com aprovação, preço por perfil e pedido mínimo;
+alta: hierarquia de compradores, orçamento, limite de crédito e compra por planilha."""
+descricao_proposta = "Operação B2B com cadastro aprovado, tabela de preço e regras de pedido próprias."
+
+[[itens]]
+id = "clube-assinatura"
+nome = "Clube de assinatura"
+categoria = "componente"
+unidade = "funcionalidade"
+exige_app = true
+horas_baixa = [12, 18]
+horas_media = [24, 36]
+horas_alta = [44, 64]
+criterio_complexidade = """
+baixa: app de assinatura instalado e estilizado;
+media: planos, frequências e gestão pelo cliente na área logada;
+alta: montagem de box, pausa/troca de itens e regra de recorrência própria."""
+descricao_proposta = "Compra recorrente com planos, frequência e gestão pelo próprio cliente."
+
+[[itens]]
+id = "provador-personalizador"
+nome = "Provador / personalizador de produto"
+categoria = "componente"
+unidade = "funcionalidade"
+horas_baixa = [12, 18]
+horas_media = [26, 40]
+horas_alta = [48, 72]
+criterio_complexidade = """
+baixa: pré-visualização com combinações fixas de imagem;
+media: composição por camadas com opções gerenciáveis;
+alta: renderização dinâmica, upload do cliente e geração de arte para produção."""
+descricao_proposta = "Ferramenta de personalização com pré-visualização do produto configurado."
+
+[[itens]]
+id = "cupom-promocoes-avancadas"
+nome = "Promoções e cupons avançados"
+categoria = "componente"
+unidade = "funcionalidade"
+horas_baixa = [6, 8]
+horas_media = [12, 18]
+horas_alta = [22, 34]
+criterio_complexidade = """
+baixa: cupom simples com exibição no carrinho;
+media: progressivo, brinde e frete grátis com comunicação na vitrine;
+alta: regras combinadas, cupom único por cliente e validação em serviço externo."""
+descricao_proposta = "Mecânicas promocionais com comunicação na vitrine e validação no carrinho."
+
+[[itens]]
+id = "pdp-variacoes-complexas"
+nome = "PDP com variações complexas"
+categoria = "componente"
+unidade = "template"
+horas_baixa = [10, 14]
+horas_media = [20, 30]
+horas_alta = [36, 56]
+criterio_complexidade = """
+baixa: duas dimensões de variação com grade simples;
+media: três ou mais dimensões, com dependência entre elas e estoque por combinação;
+alta: estrutura de produto-pai com adicionais, kits e explosão de SKU."""
+descricao_proposta = "Página de produto com múltiplas dimensões de variação e adicionais."
+
+# =============================================================================
+# INTEGRAÇÕES — todas pressupõem instalar e configurar app/conector na loja
+# =============================================================================
+[[itens]]
+id = "int-erp"
+nome = "Integração com ERP"
+categoria = "integracao"
+unidade = "integração"
+exige_app = true
+horas_baixa = [10, 14]
+horas_media = [20, 28]
+horas_alta = [36, 56]
+criterio_complexidade = """
+baixa: conector nativo da plataforma, configuração padrão, sem de-para;
+media: app com mapeamento de campos, de-para de códigos e homologação de pedidos;
+alta: middleware próprio, API custom ou ERP sem conector de mercado."""
+descricao_proposta = "Integração entre loja e ERP cobrindo produtos, estoque, preços e pedidos."
+
+[[itens]]
+id = "int-hub-marketplace"
+nome = "Integração com hub de marketplace"
+categoria = "integracao"
+unidade = "integração"
+exige_app = true
+horas_baixa = [8, 12]
+horas_media = [16, 24]
+horas_alta = [30, 44]
+criterio_complexidade = """
+baixa: hub já contratado, um canal, catálogo espelhado;
+media: dois ou três canais com regra de preço e estoque por canal;
+alta: catálogo distinto por canal, kits e conciliação de pedidos."""
+descricao_proposta = "Conexão da loja ao hub de marketplaces, com sincronismo de catálogo e pedidos."
+
+[[itens]]
+id = "int-pagamento"
+nome = "Integração de meio de pagamento"
+categoria = "integracao"
+unidade = "integração"
+exige_app = true
+horas_baixa = [4, 6]
+horas_media = [8, 12]
+horas_alta = [16, 24]
+criterio_complexidade = """
+baixa: gateway homologado, configuração padrão;
+media: múltiplos meios, parcelamento por bandeira e split simples;
+alta: adquirente sem conector, split complexo ou antifraude acoplado."""
+descricao_proposta = "Configuração e homologação dos meios de pagamento da operação."
+
+[[itens]]
+id = "int-antifraude"
+nome = "Integração de antifraude"
+categoria = "integracao"
+unidade = "integração"
+exige_app = true
+horas_baixa = [3, 4]
+horas_media = [6, 8]
+horas_alta = [10, 16]
+criterio_complexidade = """
+baixa: conector nativo com política padrão;
+media: regras por faixa de valor e fluxo de análise manual;
+alta: score próprio, integração com ERP e política por categoria."""
+descricao_proposta = "Configuração do antifraude e do fluxo de análise de pedidos."
+
+[[itens]]
+id = "int-logistica-frete"
+nome = "Integração de logística e frete"
+categoria = "integracao"
+unidade = "integração"
+exige_app = true
+horas_baixa = [6, 8]
+horas_media = [12, 18]
+horas_alta = [24, 36]
+criterio_complexidade = """
+baixa: gateway de frete homologado, uma origem;
+media: múltiplas transportadoras, prazos por região e frete grátis por regra;
+alta: multi-origem, retirada em loja, ship-from-store e rastreio próprio."""
+descricao_proposta = "Cálculo de frete, prazos e rastreio integrados ao operador logístico."
+
+[[itens]]
+id = "int-crm-automacao"
+nome = "Integração com CRM / automação"
+categoria = "integracao"
+unidade = "integração"
+exige_app = true
+horas_baixa = [4, 6]
+horas_media = [8, 12]
+horas_alta = [16, 24]
+criterio_complexidade = """
+baixa: envio de contatos por app nativo;
+media: eventos de carrinho abandonado e pós-compra com dados de pedido;
+alta: sincronismo bidirecional, segmentação por comportamento e catálogo no CRM."""
+descricao_proposta = "Envio de contatos e eventos da loja para a ferramenta de CRM e automação."
+
+[[itens]]
+id = "int-chat-atendimento"
+nome = "Integração de chat / atendimento"
+categoria = "integracao"
+unidade = "integração"
+exige_app = true
+horas_baixa = [2, 3]
+horas_media = [4, 6]
+horas_alta = [8, 12]
+criterio_complexidade = """
+baixa: script do chat instalado;
+media: identificação do cliente logado e contexto do carrinho;
+alta: roteamento por página/categoria e integração com o histórico de pedidos."""
+descricao_proposta = "Chat de atendimento com identificação do cliente e contexto de navegação."
+
+[[itens]]
+id = "int-analytics-tagueamento"
+nome = "Analytics e tagueamento"
+categoria = "integracao"
+unidade = "projeto"
+horas_baixa = [6, 8]
+horas_media = [10, 14]
+horas_alta = [18, 26]
+criterio_complexidade = """
+baixa: GA4 e pixel básicos via gerenciador de tags;
+media: e-commerce avançado completo, com camada de dados própria;
+alta: server-side tagging, consent mode e conciliação com mídia paga."""
+descricao_proposta = "Camada de dados e tagueamento de e-commerce para analytics e mídia."
+
+[[itens]]
+id = "int-recomendacao"
+nome = "Integração de recomendação"
+categoria = "integracao"
+unidade = "integração"
+exige_app = true
+horas_baixa = [4, 6]
+horas_media = [8, 12]
+horas_alta = [16, 24]
+criterio_complexidade = """
+baixa: widget pronto do fornecedor;
+media: vitrines próprias consumindo a API de recomendação;
+alta: personalização por perfil, com teste A/B e fallback por regra."""
+descricao_proposta = "Vitrines personalizadas alimentadas por motor de recomendação."
+
+[[itens]]
+id = "int-avaliacoes-reviews"
+nome = "Integração de avaliações"
+categoria = "integracao"
+unidade = "integração"
+exige_app = true
+horas_baixa = [4, 6]
+horas_media = [8, 12]
+horas_alta = [16, 24]
+criterio_complexidade = """
+baixa: widget do fornecedor na PDP;
+media: nota agregada na vitrine, rich snippet e moderação;
+alta: fotos do cliente, perguntas e respostas e importação de histórico."""
+descricao_proposta = "Avaliações de produto com nota agregada na vitrine e dados estruturados."
+
+[[itens]]
+id = "int-pdv-omni"
+nome = "Integração com PDV / omnicanal"
+categoria = "integracao"
+unidade = "integração"
+exige_app = true
+horas_baixa = [10, 14]
+horas_media = [20, 30]
+horas_alta = [36, 56]
+criterio_complexidade = """
+baixa: espelho de estoque de uma loja;
+media: retirada em loja com reserva e prazo por unidade;
+alta: ship-from-store, troca na loja física e cadastro unificado de cliente."""
+descricao_proposta = "Integração entre loja e rede física para estoque, retirada e trocas."
+
+[[itens]]
+id = "int-app-generico"
+nome = "Instalação e configuração de app"
+categoria = "integracao"
+unidade = "app"
+exige_app = true
+horas_baixa = [2, 3]
+horas_media = [4, 8]
+horas_alta = [10, 16]
+criterio_complexidade = """
+baixa: instalar, configurar e estilizar minimamente;
+media: ajustes de layout e pontos de inserção no tema;
+alta: app que exige alteração de template, hooks ou conflito com customizações."""
+descricao_proposta = "Instalação, configuração e adequação visual de aplicativo da loja."
+
+# =============================================================================
+# MIGRAÇÃO, SEO E APOIO
+# =============================================================================
+[[itens]]
+id = "migracao-catalogo"
+nome = "Migração de catálogo"
+categoria = "migracao"
+unidade = "projeto"
+horas_baixa = [8, 12]
+horas_media = [16, 26]
+horas_alta = [32, 50]
+criterio_complexidade = """
+baixa: até ~1.000 SKUs, estrutura simples, planilha limpa;
+media: milhares de SKUs com variações e especificações a normalizar;
+alta: dezenas de milhares de itens, produtos-pai, kits ou catálogo sem padrão."""
+descricao_proposta = "Transporte e normalização do catálogo para a nova plataforma."
+
+[[itens]]
+id = "migracao-clientes-pedidos"
+nome = "Migração de clientes e histórico"
+categoria = "migracao"
+unidade = "projeto"
+horas_baixa = [6, 10]
+horas_media = [14, 20]
+horas_alta = [26, 40]
+criterio_complexidade = """
+baixa: base de clientes sem histórico de pedidos;
+media: clientes com endereços e pedidos recentes;
+alta: histórico completo, programa de fidelidade e credenciais a preservar."""
+descricao_proposta = "Migração da base de clientes e do histórico relevante de pedidos."
+
+[[itens]]
+id = "plano-redirects-301"
+nome = "Plano de redirecionamentos 301"
+categoria = "migracao"
+unidade = "projeto"
+horas_baixa = [4, 6]
+horas_media = [8, 12]
+horas_alta = [16, 24]
+criterio_complexidade = """
+baixa: até algumas centenas de URLs, padrão previsível;
+media: milhares de URLs com mapeamento por regra e exceções;
+alta: URLs sem padrão, múltiplos domínios ou histórico de migrações anteriores."""
+descricao_proposta = "Mapeamento e aplicação dos redirecionamentos 301 da estrutura antiga para a nova."
+
+[[itens]]
+id = "seo-tecnico-onpage"
+nome = "SEO técnico on-page"
+categoria = "seo"
+unidade = "projeto"
+horas_baixa = [6, 8]
+horas_media = [12, 16]
+horas_alta = [20, 30]
+criterio_complexidade = """
+baixa: meta tags, títulos e sitemap;
+media: dados estruturados, canonical, paginação e hierarquia de headings;
+alta: SEO facetado, internacionalização e correção de indexação em massa."""
+descricao_proposta = "Fundamentos técnicos de SEO: metadados, dados estruturados e indexação."
+
+[[itens]]
+id = "otimizacao-performance"
+nome = "Otimização de performance"
+categoria = "seo"
+unidade = "projeto"
+horas_baixa = [6, 10]
+horas_media = [14, 20]
+horas_alta = [26, 40]
+criterio_complexidade = """
+baixa: imagens, lazy loading e limpeza de scripts;
+media: Core Web Vitals em home, PLP e PDP, com revisão de terceiros;
+alta: refatoração de componentes críticos e renderização."""
+descricao_proposta = "Trabalho de performance sobre os Core Web Vitals das páginas de maior tráfego."
+
+[[itens]]
+id = "treinamento-equipe"
+nome = "Treinamento da equipe"
+categoria = "apoio"
+unidade = "sessão"
+horas_baixa = [3, 4]
+horas_media = [6, 8]
+horas_alta = [10, 12]
+criterio_complexidade = """
+baixa: uma sessão de operação do admin, gravada;
+media: duas ou três sessões por área, com material de apoio;
+alta: trilha completa por perfil, com documentação escrita sob medida."""
+descricao_proposta = "Treinamento do time da marca na operação da nova loja."
+
+[[itens]]
+id = "cadastro-conteudo-inicial"
+nome = "Apoio ao cadastro inicial"
+categoria = "apoio"
+unidade = "projeto"
+horas_baixa = [6, 8]
+horas_media = [12, 20]
+horas_alta = [24, 40]
+criterio_complexidade = """
+baixa: conferência e ajuste de cadastro feito pelo cliente;
+media: carga assistida de categorias, coleções e vitrines;
+alta: estruturação completa de árvore de categorias e especificações."""
+descricao_proposta = "Apoio técnico à estruturação e à carga do cadastro inicial."
+
+[[itens]]
+id = "acompanhamento-golive"
+nome = "Acompanhamento de go-live"
+categoria = "apoio"
+unidade = "projeto"
+horas_baixa = [4, 6]
+horas_media = [8, 12]
+horas_alta = [16, 24]
+criterio_complexidade = """
+baixa: virada de DNS com checklist e monitoramento no mesmo dia;
+media: janela acompanhada, plano de rollback e ajustes na primeira semana;
+alta: virada faseada, migração de domínio e acompanhamento estendido."""
+descricao_proposta = "Condução da virada para produção, com checklist, monitoramento e ajustes."

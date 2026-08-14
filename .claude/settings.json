@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Write",
+      "Edit",
+      "Task",
+      "Bash(python3 scripts/precificar.py:*)",
+      "Bash(python3 scripts/render_pdf.py:*)",
+      "Bash(python3 scripts/auditar.py:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(pdftotext:*)",
+      "Bash(pdfinfo:*)",
+      "Bash(pdffonts:*)"
+    ],
+    "deny": [
+      "Bash(rm:*)"
+    ]
+  }
+}\n

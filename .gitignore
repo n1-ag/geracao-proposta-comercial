@@ -1,0 +1,18 @@
+# Gerado por proposta — nunca versionar
+/proposta/
+/saida/
+
+# Entradas reais de cliente (os .exemplo ficam versionados)
+/entrada/transcricao.md
+/entrada/dados-cliente.md
+/entrada/*.pdf
+/entrada/*.docx
+/entrada/*.txt
+
+# Ruído
+__pycache__/
+*.pyc
+.DS_Store
+
+# Propostas arquivadas — dado de cliente, não pertence ao boilerplate
+/arquivo/

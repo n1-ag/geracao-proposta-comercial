@@ -1,0 +1,176 @@
+# =============================================================================
+# N1.AG — Perfil institucional
+# Tudo que a proposta afirma SOBRE A N1 sai daqui, verbatim. O agente redator é
+# proibido de inventar credencial, número ou diferencial que não esteja aqui.
+# =============================================================================
+
+[meta]
+versao = "2026.1"
+atualizado_em = "2026-08-13"
+
+[empresa]
+nome = "N1.AG"
+rodape = "N1.AG · Proposta Comercial"
+site = "n1.ag"
+grupo = "Hub40"
+desde = 2015
+
+[contato]
+nome = "Claudio Macedo"
+cargo = "CEO"
+label = "Contato · CEO"
+email = "claudio@n1.ag"
+whatsapp = "(21) 96744-1776"
+
+# -----------------------------------------------------------------------------
+# Estatísticas institucionais para os cartões `.stats`. O agente escolhe 4 —
+# normalmente 2 do orçamento (pacote, valor/hora) e 2 daqui.
+# -----------------------------------------------------------------------------
+[[stats]]
+id = "vtex-recorrente"
+numero = "70%"
+label = "Dos contratos\nrecorrentes em VTEX"
+
+[[stats]]
+id = "clientes-ativos"
+numero = "50+"
+label = "Clientes ativos\nna operação"
+
+[[stats]]
+id = "desde"
+numero = "2015"
+label = "Especialização\nem e-commerce"
+
+[[stats]]
+id = "plataformas"
+numero = "5"
+label = "Plataformas\natendidas"
+
+# -----------------------------------------------------------------------------
+# "Por que a N1" — o agente escolhe de 4 a 5, priorizando as pertinentes ao caso.
+# Cada item tem `lead` (sai em negrito) e `texto`.
+# -----------------------------------------------------------------------------
+[[porque]]
+id = "senioridade"
+lead = "Senioridade do time."
+texto = "Não trabalhamos com estagiários ou desenvolvedores júnior: o time é pleno para cima, e a conta é atendida por profissionais fixos que acumulam conhecimento do código."
+aplica_a = ["implantacao", "evolucao"]
+
+[[porque]]
+id = "hub40"
+lead = "Braço de inovação e tecnologia do grupo Hub40,"
+texto = "que reúne também a Live SEO — maior empresa de SEO da América Latina."
+aplica_a = ["implantacao", "evolucao"]
+
+[[porque]]
+id = "fee-mensal"
+lead = "Modelo de fee mensal,"
+texto = "sem percentual sobre o faturamento do site."
+aplica_a = ["evolucao"]
+
+[[porque]]
+id = "escopo-fechado"
+lead = "Escopo e prazo formalizados antes de começar,"
+texto = "com cotação em horas por entrega e nenhuma surpresa de valor no meio do projeto."
+aplica_a = ["implantacao"]
+
+[[porque]]
+id = "vtex"
+lead = "Especialização VTEX desde 2015,"
+texto = "com 70% do portfólio recorrente na plataforma e forte presença em VTEX IO."
+aplica_a = ["implantacao", "evolucao"]
+plataformas = ["vtex"]
+
+[[porque]]
+id = "catalogo-complexo"
+lead = "Repertório em catálogos complexos."
+texto = "Já enfrentamos o desafio de explosão de SKUs em operações com centenas de variações por produto, incluindo os efeitos colaterais em indexação e busca."
+aplica_a = ["implantacao", "evolucao"]
+
+[[porque]]
+id = "multiplataforma"
+lead = "Experiência nas cinco plataformas do mercado brasileiro."
+texto = "Atendemos operações em VTEX, Shopify, Wake, Nuvemshop e WordPress — o que nos permite recomendar a escolha certa, e não a que sabemos fazer."
+aplica_a = ["implantacao"]
+
+# -----------------------------------------------------------------------------
+# Serviços complementares — cartão da página de investimento.
+# -----------------------------------------------------------------------------
+[[complementares]]
+id = "web-insights"
+titulo = "Web Insights"
+texto = "Serviço ativo de diagnóstico. A partir de uma dor de negócio — queda de conversão no mobile, por exemplo — fazemos coleta e cruzamento de dados e entregamos um relatório com diagnóstico e plano de ação priorizado. Contratado à parte."
+
+[[complementares]]
+id = "evolucao"
+titulo = "Evolução e sustentação"
+texto = "Depois do go-live, um pacote mensal de horas conduzido pelo mesmo time, com cotação formal antes de cada execução e relatório mensal de consumo por frente."
+
+# -----------------------------------------------------------------------------
+# Etapas do fluxo (.flow) — um conjunto por modelo de proposta.
+# -----------------------------------------------------------------------------
+[[fluxo_evolucao]]
+titulo = "Briefing"
+texto = "Aberto pela equipe do cliente no Runrun.it"
+[[fluxo_evolucao]]
+titulo = "Refinamento"
+texto = "Rosetta levanta as lacunas do briefing"
+[[fluxo_evolucao]]
+titulo = "Validação"
+texto = "Gestor revisa manualmente o entendimento"
+[[fluxo_evolucao]]
+titulo = "Cotação"
+texto = "Horas e prazo formalizados para aprovação"
+[[fluxo_evolucao]]
+titulo = "Execução"
+texto = "Fila de desenvolvimento e entrega validada"
+
+[[fluxo_implantacao]]
+titulo = "Descoberta"
+texto = "Kick-off, acessos e alinhamento do escopo detalhado"
+[[fluxo_implantacao]]
+titulo = "Design"
+texto = "Protótipo das telas e validação com a marca"
+[[fluxo_implantacao]]
+titulo = "Desenvolvimento"
+texto = "Construção em sprints, com entregas parciais visíveis"
+[[fluxo_implantacao]]
+titulo = "Homologação"
+texto = "Testes, ajustes e validação do time do cliente"
+[[fluxo_implantacao]]
+titulo = "Go-live"
+texto = "Virada acompanhada, com checklist e monitoramento"
+
+# -----------------------------------------------------------------------------
+# Padrão de publicação e time — cartões da página de condução.
+# -----------------------------------------------------------------------------
+[padrao_publicacao]
+titulo = "Padrão de publicação"
+itens = [
+  "Nenhuma publicação que envolva o **fluxo de compra** após as 16h.",
+  "**Sem publicações às sextas-feiras** nesse tipo de tarefa.",
+  "Validação humana do código antes de subir.",
+  "Relatório padronizado de informações a cada entrega.",
+]
+
+[time_evolucao]
+titulo = "Time responsável pela conta"
+itens = [
+  "Um **gestor** responsável pelo atendimento e pela validação das entregas.",
+  "De **dois a três desenvolvedores** recorrentes na loja.",
+  "Senioridade **pleno para cima**, sem júnior ou estágio.",
+  "Todos **funcionários da N1**.",
+]
+
+[time_implantacao]
+titulo = "Time do projeto"
+itens = [
+  "Um **gestor** responsável pelo projeto, pelo cronograma e pela validação das entregas.",
+  "**Designer** dedicado à etapa de protótipo, quando o layout é nosso.",
+  "De **dois a três desenvolvedores** ao longo da construção.",
+  "Senioridade **pleno para cima**, sem júnior ou estágio. Todos **funcionários da N1**.",
+]
+
+[rosetta]
+titulo = "Refinamento assistido por IA — a Rosetta"
+texto = "A Rosetta é a nossa IA interna, integrada ao Runrun.it e treinada em uma base de conhecimento de VTEX Legacy, VTEX IO, FastStore e anos de tarefas executadas pela N1. Ela faz as perguntas que faltam no briefing logo após a abertura, acelerando o refinamento — o que reduz de forma relevante o tempo de cotação. **O parecer final é sempre humano:** o gestor valida o entendimento antes de qualquer cotação seguir para aprovação. Nosso fluxo de desenvolvimento é híbrido, e a decisão técnica permanece com o time."

@@ -1,0 +1,122 @@
+# =============================================================================
+# N1.AG — Tabela de preços
+#
+# Este arquivo é a FONTE DA VERDADE comercial. Edite aqui, à mão. Nenhum agente
+# escreve neste arquivo, e nenhum agente calcula preço: quem calcula é
+# `scripts/precificar.py`, que lê exatamente estes valores.
+#
+# Depois de editar, rode:  python3 scripts/auditar.py precos
+# =============================================================================
+
+[meta]
+versao = "2026.1"
+atualizado_em = "2026-08-13"
+moeda = "BRL"
+
+# -----------------------------------------------------------------------------
+# A) IMPLANTAÇÃO — projeto fechado
+# -----------------------------------------------------------------------------
+# NORMATIVO: migração de plataforma e e-commerce do zero têm o MESMO valor base.
+# A `natureza` do projeto muda apenas a narrativa da proposta. Nenhuma fórmula
+# pode ler `natureza` — o `auditar.py precos` verifica isso no código.
+[implantacao]
+valor_hora_adicional = 200
+
+# Como converter a faixa [min, max] de horas do catálogo em horas cotadas.
+# "maximo" protege a margem; "media" e "minimo" existem para simulação.
+politica_faixa_horas = "maximo"
+
+# O que já está incluído no valor base de qualquer plataforma.
+escopo_padrao = ["home", "plp", "pdp", "sobre-nos", "politicas", "checkout"]
+
+[implantacao.plataformas.wordpress]
+nome = "WordPress"
+valor_base = 18000
+design_embutido = 8000
+
+[implantacao.plataformas.nuvemshop]
+nome = "Nuvemshop"
+valor_base = 22000
+design_embutido = 8000
+
+[implantacao.plataformas.shopify]
+nome = "Shopify"
+valor_base = 28000
+design_embutido = 8000
+
+[implantacao.plataformas.wake]
+nome = "Wake"
+valor_base = 45000
+design_embutido = 12000
+
+[implantacao.plataformas.vtex]
+nome = "VTEX"
+valor_base = 52000
+design_embutido = 12000
+
+# Regra especial de página avulsa: vale para LP institucional, blog e página de
+# serviço, POR PÁGINA. As horas de design só entram quando o protótipo é da N1;
+# se o cliente entrega o layout, cobra-se apenas o desenvolvimento.
+[implantacao.landing_page]
+horas_design = 4
+horas_dev = 6
+
+# -----------------------------------------------------------------------------
+# B) EVOLUÇÃO — fee mensal recorrente
+# -----------------------------------------------------------------------------
+# Quanto maior o pacote, menor a hora. As faixas são contíguas e cobrem 1..∞.
+[[evolucao.faixas]]
+id = "ate10"
+rotulo = "até 10 h/mês"
+horas_min = 1
+horas_max = 10
+valor_hora = 240
+
+[[evolucao.faixas]]
+id = "11a19"
+rotulo = "11 a 19 h/mês"
+horas_min = 11
+horas_max = 19
+valor_hora = 220
+
+[[evolucao.faixas]]
+id = "20a29"
+rotulo = "20 a 29 h/mês"
+horas_min = 20
+horas_max = 29
+valor_hora = 210
+
+[[evolucao.faixas]]
+id = "30mais"
+rotulo = "30 h/mês ou mais"
+horas_min = 30
+horas_max = 999
+valor_hora = 200
+
+[evolucao]
+# Escada usada para montar as 3 opções de pacote numa proposta de fee mensal.
+# O script escolhe o degrau mais próximo do recomendado e seus dois vizinhos.
+pacotes_sugeridos = [10, 20, 30, 40, 60]
+
+# -----------------------------------------------------------------------------
+# C) CONVERSÃO implantação -> evolução
+# -----------------------------------------------------------------------------
+# Toda proposta de implantação apresenta também a alternativa em fee mensal com
+# contrato de 12 meses. O alvo é 1,3x o valor da implantação ao longo do ano.
+[conversao]
+multiplicador_anual = 1.3
+contrato_meses = 12
+arredondamento = "half_up"
+
+# Se mais de uma faixa fechar o ponto fixo, escolhe a que entrega mais horas.
+desempate = "mais_horas"
+
+# Se o valor cair no vale entre duas faixas (nenhuma fecha), adota o piso da
+# faixa superior. São duas janelas estreitas; ver casos-teste-precificacao.toml.
+sem_faixa = "piso_da_faixa_superior"
+
+# Abaixo do piso a alternativa não é oferecida (o bloco 04b não é renderizado).
+piso_horas_mes = 4
+
+# Acima do teto o cálculo acontece, mas com alerta para decisão comercial.
+teto_horas_mes_alerta = 60

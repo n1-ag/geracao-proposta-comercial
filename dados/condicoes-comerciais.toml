@@ -1,0 +1,52 @@
+# =============================================================================
+# N1.AG — Condições comerciais
+# Editável à mão. Tudo que aparece na tabela "Condições comerciais" do PDF e nas
+# premissas sai daqui. Nenhum agente escreve neste arquivo.
+# =============================================================================
+
+[meta]
+versao = "2026.1"
+atualizado_em = "2026-08-13"
+validade_dias_padrao = 45          # validade da proposta, contada da emissão
+
+# -----------------------------------------------------------------------------
+# Implantação
+# -----------------------------------------------------------------------------
+[implantacao.pagamento]
+entrada_pct = 30
+parcelas_restante = 3
+texto = "30% de entrada e o restante parcelado em até 3×"
+
+# ATENÇÃO — REVISAR: o prazo não foi definido comercialmente; é derivado das
+# horas do escopo. Ajuste `horas_por_semana` para calibrar, ou troque por um
+# prazo fixo por plataforma se preferir.
+[implantacao.prazo]
+horas_por_semana = 20              # capacidade dedicada ao projeto
+semanas_minimas = 6                # nenhum projeto sai abaixo disso
+folga_semanas = 2                  # gera a faixa "N a N+2 semanas"
+horas_base_equivalentes = 120       # esforço embutido no valor base da plataforma
+
+[implantacao.garantia]
+dias = 30
+texto = "30 dias de garantia sobre o escopo entregue, contados do go-live"
+
+# -----------------------------------------------------------------------------
+# Evolução / fee mensal
+# -----------------------------------------------------------------------------
+[evolucao]
+hora_excedente = 220
+acumulo_saldo_pct = 20
+faturamento = "Mensal, sem percentual sobre vendas"
+
+# Fidelidade: 6 meses num contrato de evolução avulso; 12 meses quando a
+# evolução é a alternativa a uma implantação (a conversão pressupõe 12 meses).
+fidelidade_meses_padrao = 6
+fidelidade_meses_conversao = 12
+
+# -----------------------------------------------------------------------------
+# Textos de condição que vão para a tabela do PDF
+# -----------------------------------------------------------------------------
+[textos]
+horas_excedentes_nota = "Aprovadas previamente pelo cliente, caso a caso"
+saldo_nota = "20% do saldo é adicionado ao mês seguinte, conforme contrato"
+ressalva_licencas = "Licenças e mensalidades da plataforma e de terceiros são de responsabilidade do cliente."
