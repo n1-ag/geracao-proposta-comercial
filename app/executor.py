@@ -1,0 +1,815 @@
+"""O motor: fila serial, lock dos singletons e a orquestração das seis fases.
+
+Este módulo é a reimplementação em Python do que `.claude/commands/proposta.md`
+faz conversando. A diferença que importa: as fases determinísticas (03 e 06a)
+viram chamada de script, e o gate do orçamento vira invariante de código em vez
+de instrução em prosa.
+
+Uma execução por vez, sempre. `entrada/`, `proposta/` e `saida/` são singletons
+do repositório; duas execuções simultâneas se sobrescreveriam.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import queue
+import threading
+import time
+from pathlib import Path
+
+import artefatos
+import claude_runner
+import config as cfg
+import db
+import eventos
+import modelo
+import scripts_runner
+import workspace as ws
+
+# -----------------------------------------------------------------------------
+# Lock dos singletons
+# -----------------------------------------------------------------------------
+
+
+def _processo_vivo(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # existe, é de outro usuário
+    return True
+
+
+def ler_lock() -> dict | None:
+    try:
+        return json.loads(cfg.LOCK.read_text("utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+class Lock:
+    """Lock de arquivo com PID, para que um servidor morto não deixe o app travado."""
+
+    def __init__(self, proposta_id: int, slug: str):
+        self.proposta_id = proposta_id
+        self.slug = slug
+
+    def __enter__(self):
+        cfg.DADOS_APP.mkdir(parents=True, exist_ok=True)
+        conteudo = json.dumps(
+            {"pid": os.getpid(), "iniciado_em": db.agora(),
+             "proposta_id": self.proposta_id, "workspace": self.slug},
+            ensure_ascii=False,
+        )
+        try:
+            fd = os.open(cfg.LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            dono = ler_lock() or {}
+            raise RuntimeError(
+                f"outra execução está em andamento (pid {dono.get('pid')}, "
+                f"workspace {dono.get('workspace')})"
+            ) from None
+        with os.fdopen(fd, "w") as f:
+            f.write(conteudo)
+        return self
+
+    def __exit__(self, *_):
+        cfg.LOCK.unlink(missing_ok=True)
+        return False
+
+
+def limpar_lock_orfao() -> str | None:
+    """Chamado na subida do servidor. Um lock cujo dono morreu não protege nada."""
+    dono = ler_lock()
+    if not dono:
+        return None
+    pid = dono.get("pid")
+    if pid and _processo_vivo(pid) and pid != os.getpid():
+        return None
+    cfg.LOCK.unlink(missing_ok=True)
+    return f"lock órfão removido (pid {pid} não está mais rodando)"
+
+
+# -----------------------------------------------------------------------------
+# Recuperação na subida
+# -----------------------------------------------------------------------------
+
+
+def recuperar() -> list[str]:
+    """Conserta o que ficou pela metade quando o servidor morreu.
+
+    O estado confiável não é o do banco — é o dos arquivos. Uma proposta que
+    diz 'executando' mas tem `03-orcamento.json` no disco está, de fato,
+    esperando aprovação.
+    """
+    notas = []
+
+    nota = limpar_lock_orfao()
+    if nota:
+        notas.append(nota)
+
+    abertas = db.buscar("SELECT * FROM execucoes WHERE terminou_em IS NULL")
+    for e in abertas:
+        db.executar(
+            "UPDATE execucoes SET status='interrompida', terminou_em=?, erro=? WHERE id=?",
+            (db.agora(), "o servidor foi reiniciado durante a execução", e["id"]),
+        )
+    if abertas:
+        notas.append(f"{len(abertas)} execução(ões) marcada(s) como interrompida(s)")
+
+    db.executar(
+        "UPDATE fases SET status='erro', terminou_em=? WHERE terminou_em IS NULL",
+        (db.agora(),),
+    )
+
+    presas = db.buscar(
+        "SELECT * FROM propostas WHERE status IN ('executando_01_03','executando_02_03',"
+        "'executando_04_06','enfileirada')"
+    )
+    for p in presas:
+        retrato = artefatos.Retrato(ws.caminho(p["slug"]))
+        derivado, erro = retrato.status_derivado()
+        if derivado == "rascunho":
+            derivado, erro = "erro", "interrompida antes de produzir qualquer artefato"
+        elif derivado == "erro":
+            erro = f"interrompida na fase {retrato.fase_derivada()} — dá para retomar dali"
+
+        db.executar(
+            "UPDATE propostas SET status=?, erro_mensagem=?, atualizado_em=? WHERE id=?",
+            (derivado, erro, db.agora(), p["id"]),
+        )
+        db.registrar_mudanca(p["id"], "status", p["status"], derivado, "recuperada na subida")
+        notas.append(f"#{p['id']} {p['cliente']}: {p['status']} → {derivado}")
+
+    return notas
+
+
+# -----------------------------------------------------------------------------
+# Fila
+# -----------------------------------------------------------------------------
+
+_fila: queue.Queue = queue.Queue()
+_cancelados: set[int] = set()
+_atual: dict | None = None
+_trava_atual = threading.Lock()
+
+
+def estado_da_fila() -> dict:
+    with _trava_atual:
+        executando = dict(_atual) if _atual else None
+    return {
+        "executando": executando,
+        "aguardando": db.buscar(
+            """SELECT e.id, e.proposta_id, e.alvo, e.enfileirada_em, p.cliente, p.slug
+               FROM execucoes e JOIN propostas p ON p.id = e.proposta_id
+               WHERE e.status = 'fila' ORDER BY e.id"""
+        ),
+    }
+
+
+def _publicar_fila() -> None:
+    eventos.publicar("fila", estado_da_fila())
+
+
+def enfileirar(proposta_id: int, alvo: str, desde_fase: str | None = None) -> int:
+    execucao_id = db.inserir(
+        "execucoes",
+        {
+            "proposta_id": proposta_id,
+            "alvo": alvo,
+            "desde_fase": desde_fase,
+            "status": "fila",
+            "enfileirada_em": db.agora(),
+        },
+    )
+    _fila.put(execucao_id)
+    _publicar_fila()
+    return execucao_id
+
+
+def cancelar(execucao_id: int) -> bool:
+    linha = db.um("SELECT * FROM execucoes WHERE id = ?", (execucao_id,))
+    if not linha or linha["status"] not in ("fila", "executando"):
+        return False
+
+    _cancelados.add(execucao_id)
+
+    if linha["status"] == "fila":
+        db.executar(
+            "UPDATE execucoes SET status='cancelada', terminou_em=? WHERE id=?",
+            (db.agora(), execucao_id),
+        )
+        # Volta ao estado que os arquivos sustentam. Fixar 'rascunho' rebaixaria
+        # uma proposta que já tem PDF só porque alguém desistiu de refazê-la.
+        _resolver_estado(linha["proposta_id"], "execução cancelada antes de começar")
+        _publicar_fila()
+    return True
+
+
+def _foi_cancelada(execucao_id: int) -> bool:
+    return execucao_id in _cancelados
+
+
+# -----------------------------------------------------------------------------
+# Registro de fase
+# -----------------------------------------------------------------------------
+
+
+def _abrir_fase(execucao_id: int, proposta_id: int, fase: str, executor: str,
+                comando: str, tentativa: int = 1) -> int:
+    # A fila mostra em que fase a execução está agora; sem isto o painel ficaria
+    # preso na primeira fase do bloco até o fim.
+    with _trava_atual:
+        if _atual and _atual.get("execucao_id") == execucao_id:
+            _atual["fase"] = fase
+            _atual["tentativa"] = tentativa
+    _publicar_fila()
+
+    fid = db.inserir(
+        "fases",
+        {
+            "execucao_id": execucao_id, "proposta_id": proposta_id, "fase": fase,
+            "executor": executor, "comando": comando, "status": "executando",
+            "tentativa": tentativa, "comecou_em": db.agora(),
+        },
+    )
+    eventos.fase(proposta_id, execucao_id, fase, "executando", tentativa=tentativa)
+    return fid
+
+
+def _fechar_fase(fid: int, proposta_id: int, execucao_id: int, fase: str,
+                 ok: bool, **campos) -> None:
+    db.atualizar("fases", fid, {"status": "ok" if ok else "erro",
+                                "terminou_em": db.agora(), **campos})
+    eventos.fase(proposta_id, execucao_id, fase, "ok" if ok else "erro",
+                 resumo=campos.get("resumo") or campos.get("stderr_cauda", "")[:200])
+
+
+class FalhaDeFase(Exception):
+    def __init__(self, fase: str, mensagem: str):
+        super().__init__(mensagem)
+        self.fase = fase
+        self.mensagem = mensagem
+
+
+# -----------------------------------------------------------------------------
+# Fases
+# -----------------------------------------------------------------------------
+
+
+def _fase_claude(ctx: dict, fase: str, sufixo: str = "", tentativa: int = 1) -> None:
+    """Roda uma fase de conteúdo e valida os quatro critérios de sucesso."""
+    prompt = claude_runner.COMANDOS[fase] + (f"\n\n{sufixo}" if sufixo else "")
+    log = ws.caminho(ctx["slug"]) / "logs" / f"{ctx['execucao_id']:04d}-{fase}-t{tentativa}.jsonl"
+
+    fid = _abrir_fase(ctx["execucao_id"], ctx["proposta_id"], fase, "claude",
+                      claude_runner.COMANDOS[fase], tentativa)
+    inicio = time.time()
+
+    def ao_iniciar(pid, session_id):
+        db.atualizar("fases", fid, {"session_id": session_id})
+        db.executar("UPDATE execucoes SET pid=? WHERE id=?", (pid, ctx["execucao_id"]))
+
+    try:
+        r = claude_runner.executar(
+            fase, prompt, ctx["proposta_id"], log,
+            ao_iniciar=ao_iniciar,
+            cancelado=lambda: _foi_cancelada(ctx["execucao_id"]),
+        )
+    except claude_runner.Cancelado:
+        _fechar_fase(fid, ctx["proposta_id"], ctx["execucao_id"], fase, False,
+                     resumo="cancelada")
+        raise
+
+    db.atualizar("fases", fid, {"custo_usd": r.custo_usd})
+    db.executar(
+        "UPDATE execucoes SET custo_usd = custo_usd + ? WHERE id = ?",
+        (r.custo_usd, ctx["execucao_id"]),
+    )
+    db.executar(
+        "UPDATE propostas SET custo_usd = custo_usd + ? WHERE id = ?",
+        (r.custo_usd, ctx["proposta_id"]),
+    )
+
+    campos = {
+        "exit_code": r.exit_code, "duracao_ms": r.duracao_ms, "custo_usd": r.custo_usd,
+        "resumo": r.resumo, "stderr_cauda": r.stderr_cauda, "log_caminho": str(log),
+    }
+
+    if r.negacoes:
+        # Não reprova: o agente costuma tentar um comando exploratório, apanhar
+        # do allow-list e seguir por outro caminho. Mas fica visível, porque
+        # quando a fase falha esta é quase sempre a causa.
+        barradas = claude_runner.resumir_negacoes(r.negacoes)
+        eventos.progresso(
+            ctx["proposta_id"], fase,
+            f"bloqueado pelo allow-list de .claude/settings.json: {barradas}",
+            tipo="aviso",
+        )
+        db.evento(ctx["proposta_id"], "permissao_negada", f"fase {fase}: {barradas}")
+
+    if not r.ok:
+        _fechar_fase(fid, ctx["proposta_id"], ctx["execucao_id"], fase, False, **campos)
+        raise FalhaDeFase(fase, r.erro or "a fase falhou sem dizer por quê")
+
+    # Terceiro critério: os artefatos existem e são desta rodada. Um agente que
+    # "concluiu" sem escrever nada deixaria o arquivo velho passar por novo.
+    faltando = [
+        n for n in artefatos.ARTEFATO_DA_FASE[fase]
+        if not (cfg.SINGLETON_PROPOSTA / n).is_file()
+        or (cfg.SINGLETON_PROPOSTA / n).stat().st_mtime < inicio - 2
+    ]
+    if faltando:
+        _fechar_fase(fid, ctx["proposta_id"], ctx["execucao_id"], fase, False, **campos)
+        mensagem = f"a fase {fase} terminou sem escrever: {', '.join(faltando)}"
+        if r.negacoes:
+            mensagem += (
+                f". O allow-list de .claude/settings.json barrou "
+                f"{claude_runner.resumir_negacoes(r.negacoes)} — provavelmente é a causa."
+            )
+        raise FalhaDeFase(fase, mensagem)
+
+    _fechar_fase(fid, ctx["proposta_id"], ctx["execucao_id"], fase, True, **campos)
+    _atualizar_manifest_fase(fase)
+    ws.recolher()
+
+
+def _fase_script(ctx: dict, fase: str, comando: str, funcao) -> tuple:
+    fid = _abrir_fase(ctx["execucao_id"], ctx["proposta_id"], fase, "script", comando)
+    inicio = time.time()
+    resultado = funcao()
+    duracao = int((time.time() - inicio) * 1000)
+    ok = resultado[0]
+    _fechar_fase(
+        fid, ctx["proposta_id"], ctx["execucao_id"], fase, ok,
+        duracao_ms=duracao, resumo=("" if ok else resultado[-1][:400]),
+    )
+    return resultado
+
+
+# -----------------------------------------------------------------------------
+# Manifest
+# -----------------------------------------------------------------------------
+
+NOME_DA_FASE = {
+    "01": "01-briefing", "02": "02-escopo", "03": "03-orcamento",
+    "04": "04-narrativa", "05": "05-html", "06": "06-revisao",
+}
+ORDEM = ["01", "02", "03", "04", "05", "06"]
+
+
+def _ler_manifest() -> dict:
+    alvo = cfg.SINGLETON_PROPOSTA / "manifest.json"
+    try:
+        return json.loads(alvo.read_text("utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _escrever_manifest(m: dict) -> None:
+    cfg.SINGLETON_PROPOSTA.mkdir(parents=True, exist_ok=True)
+    (cfg.SINGLETON_PROPOSTA / "manifest.json").write_text(
+        json.dumps(m, ensure_ascii=False, indent=2) + "\n", "utf-8"
+    )
+
+
+def preparar_manifest(linha: dict) -> None:
+    m = _ler_manifest()
+    m.setdefault("criado_em", db.hoje())
+    m["cliente"] = linha["cliente"]
+    m["atualizado_em"] = db.hoje()
+    m.setdefault("checkpoint_humano", {"exigido_apos": "03", "status": "pendente"})
+    m.setdefault(
+        "fases",
+        {
+            NOME_DA_FASE[f]: {"status": "pendente", "versao": 0, "atualizado_em": None,
+                              "artefato": f"proposta/{artefatos.ARTEFATO_DA_FASE[f][0]}"}
+            for f in ORDEM
+        },
+    )
+    m.setdefault("saida", {"pdf": None, "paginas": None, "transbordos": None, "render_em": None})
+    m.setdefault("alertas", [])
+    m.setdefault("rastreabilidade", [])
+    _escrever_manifest(m)
+
+
+def _atualizar_manifest_fase(fase: str) -> None:
+    """Marca a fase como concluída e as posteriores como desatualizadas.
+
+    O comando slash já faz parte disso quando roda pelo terminal; aqui é o
+    servidor quem garante — o agente pode ter esquecido, e o manifest é o que
+    o resto do pipeline lê.
+    """
+    m = _ler_manifest()
+    fases = m.setdefault("fases", {})
+    nome = NOME_DA_FASE[fase]
+    bloco = fases.setdefault(nome, {"versao": 0})
+
+    # Só incrementa se o comando não tiver incrementado antes de nós.
+    if bloco.get("status") != "concluida" or not bloco.get("atualizado_em") == db.hoje():
+        bloco["versao"] = int(bloco.get("versao") or 0) + 1
+    bloco["status"] = "concluida"
+    bloco["atualizado_em"] = db.hoje()
+    bloco["artefato"] = f"proposta/{artefatos.ARTEFATO_DA_FASE[fase][0]}"
+    if fase == "02":
+        bloco["espelho"] = "proposta/02-escopo.json"
+    if fase == "03":
+        bloco["espelho"] = "proposta/03-orcamento.json"
+    if fase == "05":
+        bloco["saida"] = "proposta/proposta.html"
+
+    for posterior in ORDEM[ORDEM.index(fase) + 1:]:
+        outro = fases.get(NOME_DA_FASE[posterior])
+        if outro and outro.get("status") == "concluida":
+            outro["status"] = "desatualizada"
+
+    m["fase_atual"] = fase
+    m["atualizado_em"] = db.hoje()
+    _escrever_manifest(m)
+
+
+def gravar_checkpoint(proposta_id: int, observacoes: list[str]) -> None:
+    """Grava a aprovação no manifest, no formato que a fase 04 confere."""
+    orc = artefatos.ler_json(cfg.SINGLETON_PROPOSTA / "03-orcamento.json") or {}
+    m = _ler_manifest()
+    m["checkpoint_humano"] = {
+        "exigido_apos": "03",
+        "status": "aprovado",
+        "aprovado_em": db.hoje(),
+        "aprovado_sobre": {
+            "orcamento_hash": orc.get("hash_entrada"),
+            "total_fmt": (orc.get("totais") or {}).get("implantacao_total_fmt")
+            or (orc.get("totais") or {}).get("evolucao_mensal_fmt"),
+        },
+        "observacoes": observacoes,
+    }
+    m["atualizado_em"] = db.hoje()
+    _escrever_manifest(m)
+
+
+# -----------------------------------------------------------------------------
+# Sincronização banco ↔ orçamento
+# -----------------------------------------------------------------------------
+
+
+def sincronizar_orcamento(proposta_id: int, slug: str) -> dict:
+    """Puxa do `03-orcamento.json` recém-escrito o que o banco precisa saber."""
+    retrato = artefatos.Retrato(ws.caminho(slug))
+    campos = retrato.campos()
+
+    interessa = {
+        k: campos[k] for k in (
+            "total_cru", "total_fmt", "total_tipo", "evolucao_mensal", "evolucao_mensal_fmt",
+            "prazo_fmt", "hash_orcamento", "hash_dados", "precos_versao",
+            "modelo_res", "natureza_res", "plataforma_res",
+        )
+    }
+    interessa["atualizado_em"] = db.agora()
+
+    with db.transacao():
+        db.atualizar("propostas", proposta_id, interessa)
+        db.executar("DELETE FROM alertas WHERE proposta_id = ?", (proposta_id,))
+        db.executar("DELETE FROM lacunas WHERE proposta_id = ?", (proposta_id,))
+        for a in retrato.alertas():
+            db.inserir("alertas", {**a, "proposta_id": proposta_id,
+                                   "hash_orcamento": interessa["hash_orcamento"],
+                                   "criado_em": db.agora()})
+        for texto in retrato.lacunas():
+            db.inserir("lacunas", {"proposta_id": proposta_id, "texto": texto,
+                                   "hash_orcamento": interessa["hash_orcamento"],
+                                   "criado_em": db.agora()})
+    return interessa
+
+
+# -----------------------------------------------------------------------------
+# Blocos de execução
+# -----------------------------------------------------------------------------
+
+
+def _bloco_ate_orcamento(ctx: dict, fases: list[str]) -> None:
+    """01 → 02 → 03, ou só 02 → 03 num reajuste."""
+    for fase in fases:
+        if fase == "03":
+            ok, mensagem = scripts_runner.auditar_escopo()
+            if not ok:
+                raise FalhaDeFase("02", mensagem)
+
+            ok, mensagem = _fase_script(
+                ctx, "auditoria", "python3 scripts/auditar.py precos",
+                scripts_runner.auditar_precos,
+            )
+            if not ok:
+                raise FalhaDeFase("03", mensagem)
+
+            ok, _orc, mensagem = _fase_script(
+                ctx, "03", "python3 scripts/precificar.py", scripts_runner.precificar
+            )
+            if not ok:
+                raise FalhaDeFase("03", mensagem)
+
+            _atualizar_manifest_fase("03")
+            ws.recolher()
+            sincronizar_orcamento(ctx["proposta_id"], ctx["slug"])
+        else:
+            sufixo = ctx.get("sufixo_da_fase", {}).get(fase, "")
+            _fase_claude(ctx, fase, sufixo)
+
+
+def _bloco_pdf(ctx: dict, fases: list[str] | None = None) -> None:
+    """04 → 05 → 06a (render, com retry de transbordo) → 06b (revisão).
+
+    `fases` permite retomar do meio: pedir "retomar da 05" não pode reescrever a
+    narrativa que já estava boa.
+    """
+    fases = fases or ["04", "05", "06"]
+    dados: dict = {}
+
+    if "04" in fases:
+        _fase_claude(ctx, "04")
+
+    tentativa = 1
+    sufixo = ""
+    while True:
+        if "05" in fases or tentativa > 1:
+            _fase_claude(ctx, "05", sufixo, tentativa=tentativa)
+
+        ok, mensagem = scripts_runner.auditar_html()
+        if not ok:
+            raise FalhaDeFase("05", mensagem)
+
+        ok, dados, mensagem = _fase_script(
+            ctx, "06a", "python3 scripts/render_pdf.py",
+            lambda: scripts_runner.renderizar(ctx.get("titulo_pdf")),
+        )
+        if ok:
+            break
+
+        if not dados.get("transbordo") or tentativa > cfg.MAX_RETRY_TRANSBORDO:
+            raise FalhaDeFase("06a", mensagem)
+
+        # Transbordou: em vez de desistir, devolve o relatório de paginação para
+        # a fase 05 corrigir. Duas tentativas; depois é problema de texto, não
+        # de montagem, e quem resolve é uma pessoa.
+        tentativa += 1
+        problemas = scripts_runner.paginas_problematicas()
+        quais = ", ".join(
+            f"página {p.get('pagina')} ({p.get('transbordo_px')}px além"
+            + (", colide com o rodapé" if p.get("colide_com_rodape") else "") + ")"
+            for p in problemas
+        ) or "veja o relatório"
+        sufixo = (
+            f"O render anterior transbordou: {quais}. Leia "
+            f"`saida/relatorio-paginacao.json` e corrija, nesta ordem: (1) mova o último "
+            f"bloco da página que estourou para uma página de continuação; (2) reduza a "
+            f"quantidade de itens em listas longas; (3) se o problema for texto longo "
+            f"demais, reporte que é preciso voltar ao redator em vez de espremer.\n"
+            f"Tentativa {tentativa} de {cfg.MAX_RETRY_TRANSBORDO + 1}.\n"
+            f"Detalhe: {json.dumps(problemas, ensure_ascii=False)[:900]}"
+        )
+        eventos.progresso(ctx["proposta_id"], "05",
+                          f"transbordo de paginação — refazendo a montagem (tentativa {tentativa})",
+                          tipo="aviso")
+
+    ws.recolher()
+    _registrar_pdf(ctx, dados)
+
+    # Auditoria final do PDF: páginas, fontes embutidas, metadados e marcadores
+    # não resolvidos. Informativa — o PDF existe e já passou pelo render estrito;
+    # reprovar aqui desfaria trabalho bom por um detalhe que uma pessoa resolve.
+    pdf = cfg.SINGLETON_SAIDA / Path(dados["pdf"]).name
+    if pdf.is_file():
+        ok_pdf, aviso_pdf = scripts_runner.auditar_pdf(pdf)
+        if not ok_pdf:
+            eventos.progresso(ctx["proposta_id"], "06a",
+                              f"a auditoria do PDF apontou algo: {aviso_pdf[:160]}", tipo="aviso")
+            db.evento(ctx["proposta_id"], "auditoria_pdf", aviso_pdf[:600])
+
+    if "06" not in fases:
+        return
+
+    # A revisão qualitativa é desejável, não obrigatória: o PDF já existe e é
+    # válido. Falhar aqui não pode desfazer o que deu certo.
+    try:
+        _fase_claude(ctx, "06")
+    except FalhaDeFase as e:
+        eventos.progresso(ctx["proposta_id"], "06",
+                          f"a revisão qualitativa não rodou ({e.mensagem[:120]}) — o PDF está pronto",
+                          tipo="aviso")
+
+
+def _registrar_pdf(ctx: dict, dados: dict) -> None:
+    base = ws.caminho(ctx["slug"])
+    pdf = Path(dados["pdf"])
+    relativo = None
+    achados = sorted((base / "saida").glob("*.pdf"))
+    if achados:
+        relativo = str(achados[-1].relative_to(base))
+    elif pdf.is_file():
+        relativo = f"saida/{pdf.name}"
+
+    m = _ler_manifest()
+    m["saida"] = {
+        "pdf": relativo, "paginas": dados.get("paginas"),
+        "transbordos": 0, "render_em": db.agora(),
+    }
+    _escrever_manifest(m)
+    ws.recolher()
+
+    db.atualizar("propostas", ctx["proposta_id"], {
+        "pdf_caminho": relativo,
+        "pdf_paginas": dados.get("paginas"),
+        "pdf_gerado_em": db.agora(),
+        "atualizado_em": db.agora(),
+    })
+
+
+# -----------------------------------------------------------------------------
+# Laço do motor
+# -----------------------------------------------------------------------------
+
+PLANOS = {
+    "bloco_01_03": (["01", "02", "03"], modelo.EXEC_01_03),
+    "reajuste_02_03": (["02", "03"], modelo.EXEC_02_03),
+    "bloco_04_06": ([], modelo.EXEC_04_06),
+    "rerender": ([], modelo.EXEC_04_06),
+}
+
+
+def _executar(execucao: dict) -> None:
+    global _atual
+
+    proposta = db.um("SELECT * FROM propostas WHERE id = ?", (execucao["proposta_id"],))
+    if not proposta:
+        return
+
+    alvo = execucao["alvo"]
+    fases, estado = PLANOS[alvo]
+
+    todas = ["04", "05", "06"] if alvo == "bloco_04_06" else ["01", "02", "03"]
+    if alvo == "bloco_04_06":
+        fases = list(todas)
+    if execucao["desde_fase"] and execucao["desde_fase"] in todas:
+        fases = todas[todas.index(execucao["desde_fase"]):]
+
+    ctx = {
+        "proposta_id": proposta["id"],
+        "slug": proposta["slug"],
+        "execucao_id": execucao["id"],
+        "titulo_pdf": _titulo_pdf(proposta),
+        "sufixo_da_fase": {},
+    }
+
+    if alvo == "reajuste_02_03":
+        ctx["sufixo_da_fase"]["02"] = (
+            "Refação pedida no checkpoint. Leia `proposta/ajustes.md` e aplique o bloco "
+            "marcado PENDENTE. Preserve todo o resto do mapeamento anterior — é um "
+            "ajuste pontual, não um remapeamento do zero. Registre na seção "
+            "\"Ajustes aplicados\" o que mudou e por quê."
+        )
+
+    with _trava_atual:
+        _atual = {"execucao_id": execucao["id"], "proposta_id": proposta["id"],
+                  "cliente": proposta["cliente"], "alvo": alvo, "fase": fases[0] if fases else "04",
+                  "desde": db.agora()}
+    _publicar_fila()
+
+    db.executar("UPDATE execucoes SET status='executando', comecou_em=? WHERE id=?",
+                (db.agora(), execucao["id"]))
+    modelo.mudar_status(proposta["id"], estado, f"execução #{execucao['id']}", erro_mensagem=None)
+    eventos.proposta(db.um("SELECT * FROM propostas WHERE id = ?", (proposta["id"],)))
+
+    erro_final = None
+    try:
+        with Lock(proposta["id"], proposta["slug"]):
+            ws.montar(proposta["slug"])
+            preparar_manifest(proposta)
+
+            if alvo == "rerender":
+                ok, dados, mensagem = _fase_script(
+                    ctx, "06a", "python3 scripts/render_pdf.py",
+                    lambda: scripts_runner.renderizar(ctx["titulo_pdf"]),
+                )
+                if not ok:
+                    raise FalhaDeFase("06a", mensagem)
+                ws.recolher()
+                _registrar_pdf(ctx, dados)
+            elif alvo == "bloco_04_06":
+                atual = db.um("SELECT * FROM propostas WHERE id = ?", (proposta["id"],))
+                modelo.exigir_aprovado(atual)
+                _bloco_pdf(ctx, fases)
+            else:
+                _bloco_ate_orcamento(ctx, fases)
+                modelo.derrubar_checkpoint(
+                    proposta["id"],
+                    "o orçamento foi recalculado; a aprovação anterior não vale mais",
+                )
+
+            ws.recolher()
+
+    except claude_runner.Cancelado:
+        erro_final = "cancelada"
+    except FalhaDeFase as e:
+        erro_final = e.mensagem
+    except Exception as e:  # noqa: BLE001
+        # Erro não previsto é bug nosso, não do pipeline: o traceback tem que
+        # aparecer no console de quem roda o servidor.
+        import traceback
+
+        traceback.print_exc()
+        erro_final = f"erro interno do app — {type(e).__name__}: {e}"
+    finally:
+        # Recolher fora do lock também: se o montar falhou no meio, o que estava
+        # nos singletons ainda precisa voltar para o dono.
+        try:
+            ws.recolher()
+        except Exception:  # noqa: BLE001
+            pass
+        with _trava_atual:
+            _atual = None
+        _cancelados.discard(execucao["id"])
+
+    if erro_final == "cancelada":
+        db.executar("UPDATE execucoes SET status='cancelada', terminou_em=? WHERE id=?",
+                    (db.agora(), execucao["id"]))
+        _resolver_estado(proposta["id"], "execução cancelada")
+    elif erro_final:
+        db.executar("UPDATE execucoes SET status='erro', terminou_em=?, erro=? WHERE id=?",
+                    (db.agora(), erro_final, execucao["id"]))
+        modelo.mudar_status(proposta["id"], modelo.ERRO, "falha na execução",
+                            erro_mensagem=erro_final)
+        eventos.erro(proposta["id"], None, erro_final)
+    else:
+        db.executar("UPDATE execucoes SET status='concluida', terminou_em=? WHERE id=?",
+                    (db.agora(), execucao["id"]))
+        destino = modelo.GERADA if alvo in ("bloco_04_06", "rerender") else modelo.AGUARDANDO
+        modelo.mudar_status(proposta["id"], destino, "execução concluída", erro_mensagem=None)
+
+    linha = db.um("SELECT * FROM propostas WHERE id = ?", (proposta["id"],))
+    ws.escrever_meta(proposta["slug"], linha)
+    eventos.proposta(linha)
+    _publicar_fila()
+
+
+def _resolver_estado(proposta_id: int, motivo: str) -> None:
+    """Depois de um cancelamento, o estado sai do disco, não de um palpite.
+
+    Uma proposta com PDF volta a `gerada`; uma com orçamento volta a
+    `aguardando_aprovacao`. Só quem não produziu nada vira `erro`.
+    """
+    linha = db.um("SELECT * FROM propostas WHERE id = ?", (proposta_id,))
+    if not linha:
+        return
+    retrato = artefatos.Retrato(ws.caminho(linha["slug"]))
+    destino, erro = retrato.status_derivado()
+    if destino == "rascunho" and linha["status"] not in ("rascunho", "enfileirada"):
+        destino, erro = modelo.ERRO, motivo
+    db.executar("UPDATE propostas SET status=?, erro_mensagem=?, atualizado_em=? WHERE id=?",
+                (destino, erro if destino == modelo.ERRO else None, db.agora(), proposta_id))
+    db.registrar_mudanca(proposta_id, "status", linha["status"], destino, motivo)
+
+
+def _titulo_pdf(proposta: dict) -> str:
+    modelo_ = proposta["modelo_res"] or proposta["modelo"] or "implantacao"
+    assunto = "Implantação do E-commerce" if modelo_ == "implantacao" else "Evolução e Sustentação"
+    return f"Proposta Comercial N1.AG — {assunto} {proposta['cliente']}"
+
+
+def _laco() -> None:
+    while True:
+        execucao_id = _fila.get()
+        try:
+            linha = db.um("SELECT * FROM execucoes WHERE id = ?", (execucao_id,))
+            if not linha or linha["status"] != "fila":
+                continue
+            if _foi_cancelada(execucao_id):
+                _cancelados.discard(execucao_id)
+                continue
+            _executar(linha)
+        except Exception:  # noqa: BLE001
+            import traceback
+
+            traceback.print_exc()
+        finally:
+            _fila.task_done()
+
+
+_thread: threading.Thread | None = None
+
+
+def iniciar() -> list[str]:
+    """Sobe o motor e devolve as notas da recuperação, para o log de subida."""
+    global _thread
+
+    notas = recuperar()
+
+    # Fila durável: o que estava esperando quando o servidor caiu volta a esperar.
+    for e in db.buscar("SELECT id FROM execucoes WHERE status = 'fila' ORDER BY id"):
+        _fila.put(e["id"])
+
+    if _thread is None or not _thread.is_alive():
+        _thread = threading.Thread(target=_laco, name="motor", daemon=True)
+        _thread.start()
+
+    return notas

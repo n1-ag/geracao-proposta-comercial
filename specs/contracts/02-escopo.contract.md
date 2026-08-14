@@ -1,6 +1,7 @@
 # Contrato 02 — Escopo
 
-**Entrada:** `proposta/01-briefing.md`, `dados/catalogo-modulos.toml`
+**Entrada:** `proposta/01-briefing.md`, `dados/catalogo-modulos.toml`,
+`proposta/ajustes.md` (opcional, nas refações pedidas no checkpoint)
 **Saída:** `proposta/02-escopo.md` + `proposta/02-escopo.json`
 **Executor:** agente `escopo-mapper`
 
@@ -25,6 +26,10 @@ do catálogo; **não soma, não multiplica, não precifica.**
 8. **Fora de escopo** — o que foi citado na reunião e **não** entra.
 9. **Lacunas de escopo** — o que precisa de confirmação antes de fechar.
 10. **Espelho de dados** — declara que o `.json` foi escrito e é consistente.
+11. **Ajustes aplicados** — obrigatória **quando `proposta/ajustes.md` existe**.
+    Para cada ajuste pendente: o que mudou no mapeamento e por quê. Ajuste não
+    aplicado também entra, com o motivo. É o que permite a quem aprova conferir
+    que o pedido dele foi entendido.
 
 ## Schema de `02-escopo.json`
 
@@ -33,9 +38,10 @@ do catálogo; **não soma, não multiplica, não precifica.**
   "schema_versao": "1.0",
   "modelo_principal": "implantacao | evolucao",
   "natureza": "migracao | novo | evolucao",
-  "plataforma": "shopify | vtex | wake | nuvemshop | wordpress",
+  "plataforma": "shopify | vtex | wake | nuvemshop | wordpress | template-html",
   "design_fornecido_pelo_cliente": false,
   "evolucao_solicitada": { "ativa": false, "horas_mes": null },
+  "prazo_semanas": { "min": 6, "max": 7, "origem": ["E71"], "justificativa": "" },
   "itens": [
     { "catalogo_id": "int-erp", "complexidade": "media", "quantidade": 1,
       "design_pela_n1": true, "origem": ["E12"], "observacao": "" }
@@ -57,12 +63,22 @@ agente não pode errar uma conta que não tem permissão de escrever.
   Ausente, herda de `design_fornecido_pelo_cliente`.
 - Numa proposta `evolucao`, `evolucao_solicitada.horas_mes` é obrigatório: é o
   pacote recomendado, derivado do volume de demandas recorrentes levantado.
+- `prazo_semanas` é **opcional** e só existe para um caso: o prazo foi
+  **prometido na reunião**. Uma proposta que contradiz o que foi dito ao vivo
+  custa caro. Omitido, o prazo é derivado das horas do escopo. Declarado, exige
+  `origem` com a evidência — sem ela o script aborta — e sempre dispara
+  `PRAZO_DEFINIDO_MANUALMENTE` no checkpoint, com o prazo que a fórmula daria,
+  para que a diferença seja uma decisão e não um descuido. Não use este campo
+  para "encaixar" um prazo que ninguém prometeu.
 
 ## Regras
 
 - **Proibido escrever `R$`** em qualquer lugar da fase. `auditar.py escopo` reprova.
 - **Proibido somar horas.** O total é responsabilidade do script.
-- Todo item cotado tem `origem` com ao menos um `E##`.
+- Todo item cotado tem `origem` com ao menos um `E##` ou `O##`. `E##` é citação
+  do cliente; `O##` é observação do comercial (contrato 01, seção 12b).
+- Item sustentado **apenas** por `O##` entra em Lacunas como "a confirmar com o
+  cliente": foi o comercial que afirmou, não o cliente.
 - `catalogo_id` inexistente é erro fatal no script — use `itens_fora_catalogo`.
 - Não cote item do escopo padrão como adicional: ele já está no valor base.
 

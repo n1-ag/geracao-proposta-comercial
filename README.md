@@ -7,7 +7,23 @@ A arquitetura tem uma regra central: **o LLM decide *o quê*; o Python decide
 agente, o preço é calculado por script, e um checkpoint humano fica entre os dois
 e o PDF.
 
-## Quick start
+Há **dois jeitos de usar**: o app local, feito para o time comercial, e os slash
+commands no terminal, para quem quer o controle fino. Os dois rodam o mesmo
+pipeline sobre os mesmos dados.
+
+## Quick start — o app (recomendado para o comercial)
+
+```bash
+python3 app/importar.py     # só na primeira vez: traz o histórico de arquivo/
+python3 app/servidor.py     # abre http://127.0.0.1:7801
+```
+
+Cadastre o cliente, cole a transcrição, escreva as observações e mande gerar. O
+app roda 01 → 03, para na tela de aprovação com o escopo e os valores, e só
+depois do seu aval segue para 04 → 06 e entrega o PDF. Nenhum terminal
+envolvido. Veja [app/README.md](app/README.md).
+
+## Quick start — o terminal
 
 ```bash
 cp entrada/transcricao.exemplo.md  entrada/transcricao.md    # cole a transcrição real
@@ -59,7 +75,7 @@ Tudo em `dados/`, em TOML, para editar à mão:
 | Arquivo | O quê |
 |---|---|
 | `precos.toml` | valor base por plataforma, design embutido, hora, faixas de fee, conversão |
-| `catalogo-modulos.toml` | ~46 módulos com horas por complexidade |
+| `catalogo-modulos.toml` | 58 módulos com horas por complexidade |
 | `condicoes-comerciais.toml` | parcelamento, prazo, fidelidade, validade |
 | `perfil-n1.toml` | o que a proposta pode afirmar sobre a N1 |
 
@@ -87,6 +103,9 @@ scripts/     precificar.py · render_pdf.py · auditar.py
 proposta/    artefatos da proposta em andamento (gerado)
 saida/       o PDF e os relatórios (gerado)
 arquivo/     propostas encerradas, uma pasta por cliente (gerado, fora do git)
+
+app/         o webapp local para o time comercial (stdlib pura + SQLite)
+propostas/   um workspace por proposta, gerido pelo app (gerado, fora do git)
 ```
 
 Leia o `GUIA.md` para o uso no dia a dia e `specs/README.md` para entender o

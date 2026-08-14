@@ -1,0 +1,110 @@
+/* Identidade digital da N1.AG — medida do CSS real de www.n1.ag.
+ *
+ * Este é o registro DIGITAL da marca: dark, ciano vibrante, glow e gradiente.
+ * O PDF da proposta usa o registro IMPRESSO (fundo claro, #06ADC2, Poppins),
+ * definido em templates/assets/css/proposta.css. São dois sistemas distintos e
+ * deliberados — não unifique.
+ */
+
+:root {
+  /* superfícies */
+  --fundo:    #0B1227;
+  --sup-1:    #050D27;
+  --sup-2:    #0C1329;
+  --sup-3:    #081A40;
+  --sup-4:    #2D2D44;
+
+  /* marca */
+  --ciano:    #3CCBDA;
+  --ciano-esc:#2AA4B1;
+  --navy:     #0C1F59;
+  --borda:    #06247E;
+  --ambar:    #F6AB00;
+  --azul-cl:  #69C7F0;
+
+  /* texto */
+  --texto:    #F3F4F7;
+  --texto-2:  #B8B8BC;
+  --texto-3:  #7A8098;
+
+  /* semânticos — derivados da família da marca, não existem no site */
+  --ok:       #3CDA9B;
+  --erro:     #E0596B;
+  --aviso:    var(--ambar);
+
+  /* forma */
+  --r:        10px;
+  --r-card:   8px;
+  --r-pill:   999px;
+
+  /* gradientes característicos do site */
+  --grad-primario: radial-gradient(105.4% 101.68% at 89.06% 88.91%, #3CCBDA 43.01%, #0C1F59 88.98%);
+  --veu:           linear-gradient(8deg, rgba(60,203,218,0) -32.53%, rgba(60,203,218,.13) 63.83%, rgba(60,203,218,.2) 276.77%);
+  --fade:          linear-gradient(180deg, #0B1227, transparent 79.78%);
+  --borda-vidro:   linear-gradient(145deg, rgba(255,255,255,.4) -169.31%, rgba(255,255,255,0) 104.94%);
+
+  /* tipografia */
+  --f-texto:   Poppins, "Segoe UI", system-ui, sans-serif;
+  --f-display: Archimoto, var(--f-texto);
+
+  /* medidas do shell */
+  --sidebar:  248px;
+  --topbar:   64px;
+  --gutter:   20px;
+}
+
+/* Tipografia em dois papéis, como no próprio site da N1.
+ *
+ * Archimoto é fonte de DISPLAY: só tem caixa alta, então em texto corrido sai
+ * ilegível. Usada em títulos, números grandes e rótulos curtos — que é
+ * exatamente o uso dela em n1.ag.
+ *
+ * Poppins carrega o texto corrido. Já está vendorizada no repositório (é a
+ * fonte do PDF, OFL), então não custa download novo e mantém o app coerente
+ * com a proposta impressa.
+ *
+ * Nada de CDN: o app roda offline, do mesmo jeito que o PDF. */
+
+@font-face {
+  font-family: Archimoto;
+  font-weight: 100;
+  src: url(../fonts/ArchimotoN1-Thin.woff2) format("woff2");
+  font-display: block;
+}
+@font-face {
+  font-family: Archimoto;
+  font-weight: 400;
+  src: url(../fonts/ArchimotoN1-Regular.woff2) format("woff2");
+  font-display: block;
+}
+@font-face {
+  font-family: Archimoto;
+  font-weight: 500;
+  src: url(../fonts/ArchimotoV01-Medium.woff2) format("woff2");
+  font-display: block;
+}
+@font-face {
+  font-family: Archimoto;
+  font-weight: 900;
+  src: url(../fonts/ArchimotoN1-Black.woff2) format("woff2");
+  font-display: block;
+}
+
+@font-face {
+  font-family: Poppins;
+  font-weight: 400;
+  src: url(../fonts/Poppins-Regular.ttf) format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: Poppins;
+  font-weight: 500;
+  src: url(../fonts/Poppins-Medium.ttf) format("truetype");
+  font-display: swap;
+}
+@font-face {
+  font-family: Poppins;
+  font-weight: 600;
+  src: url(../fonts/Poppins-SemiBold.ttf) format("truetype");
+  font-display: swap;
+}

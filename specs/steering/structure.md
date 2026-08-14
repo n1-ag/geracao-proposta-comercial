@@ -10,7 +10,18 @@ templates/   casca, seções, blocos, CSS e assets do PDF
 scripts/     precificar.py · render_pdf.py · auditar.py
 proposta/    artefatos gerados da proposta em andamento (gitignored)
 saida/       o PDF e os relatórios (gitignored)
+
+app/         o webapp local para o time comercial (stdlib pura + SQLite)
+propostas/   um workspace por proposta, gerido pelo app (gitignored)
+arquivo/     propostas encerradas pelo fluxo de terminal (gitignored)
 ```
+
+`entrada/`, `proposta/` e `saida/` são **singletons**: uma proposta por vez, para
+que `dados/` continue sendo fonte única de preço. O app contorna isso guardando
+cada proposta em `propostas/<NNNN>-<slug>/` e **montando** nos singletons só a que
+vai rodar, em fila serial. Consequência prática: **não rode `/proposta` no
+terminal com o app ligado** — os dois disputam as mesmas pastas. O
+`GET /api/saude` mostra qual proposta está montada.
 
 ## Nomes de artefato
 

@@ -1,5 +1,14 @@
 # Guia de uso
 
+> **Este guia é do fluxo de terminal.** Se você é do comercial, use o app:
+> `python3 app/servidor.py` e abra `http://127.0.0.1:7801`. Ele faz tudo o que
+> está descrito aqui, sem terminal — veja [app/README.md](app/README.md).
+>
+> **Não use os dois ao mesmo tempo.** O app e os slash commands disputam as
+> mesmas pastas de trabalho (`entrada/`, `proposta/`, `saida/`). Com o app
+> ligado, `GET /api/saude` mostra qual proposta está montada nelas; rodar
+> `/proposta` em paralelo sobrescreve o trabalho dela.
+
 ## 1. O modelo de uso: uma proposta por vez
 
 O repositório é **um só**, e trabalha uma proposta por vez. Não duplique a pasta
@@ -27,6 +36,12 @@ dado de cliente. O PDF que importa deve ir para o Drive ou o CRM, não ficar só
 aqui.
 
 Histórico do que já saiu: `python3 scripts/arquivar.py --listar`
+
+**No app é diferente.** Ele guarda cada proposta em `propostas/<NNNN>-<slug>/` e
+monta nos singletons só a que vai rodar, uma de cada vez, protegida por um lock.
+Não existe `/proposta-nova` lá: você simplesmente cria a próxima. O import
+(`python3 app/importar.py`) traz o que já está em `arquivo/` para dentro do app,
+sem apagar nada.
 
 ## 2. Antes de rodar
 
@@ -60,10 +75,19 @@ escrito e o PDF é gerado.
 ## 4. O checkpoint é uma barreira
 
 Se você mandar ajustar o escopo, o pipeline volta para a fase 02, roda a 03 de
-novo e **retorna ao checkpoint**. Refazer 02 ou 03 muda o hash do orçamento e
-derruba a aprovação — as fases 04, 05 e 06 ficam bloqueadas até nova aprovação.
+novo e **retorna ao checkpoint**. Refazer 02 ou 03 derruba a aprovação — as
+fases 04, 05 e 06 ficam bloqueadas até nova aprovação.
 
 É proposital: impede que um preço aprovado vire outro preço em silêncio.
+
+⚠️ **O rebaixamento é explícito, não automático.** É tentador supor que basta
+comparar `manifest.checkpoint_humano.aprovado_sobre.orcamento_hash` com o
+`hash_entrada` do orçamento — mas esse hash cobre **apenas** os três TOML de
+preço (`Dados.hash`, em `scripts/precificar.py`). Ele detecta mudança na tabela
+de preços, **não** mudança de escopo: refazer 02 e 03 com itens diferentes
+produz exatamente o mesmo hash. Quem refaz a fase precisa zerar
+`checkpoint_humano` na mão. O app faz isso sempre, e mantém um segundo hash
+sobre o conteúdo inteiro do orçamento para guardar o gate de verdade.
 
 ## 5. Ajustando preços
 
@@ -132,7 +156,7 @@ Ele avisa se a tabela de preços mudou desde que o orçamento foi calculado.
 ## 10. Verificando por fora
 
 ```bash
-python3 scripts/auditar.py precos                  # dados + 35 casos golden
+python3 scripts/auditar.py precos                  # dados + suíte golden
 python3 scripts/auditar.py escopo                  # .md × .json, rastreabilidade
 python3 scripts/auditar.py numeros                 # todo número do HTML veio do orçamento
 python3 scripts/auditar.py template                # só classes declaradas no CSS

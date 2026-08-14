@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>N1 Propostas</title>
+<link rel="icon" href="/static/img/n1-wordmark.svg">
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+
+<div class="ambiente"></div>
+
+<div class="shell">
+  <aside class="sidebar">
+    <div class="marca">
+      <img src="/static/img/n1-wordmark.svg" alt="N1.AG">
+      <div class="produto">Propostas</div>
+    </div>
+
+    <nav class="nav" id="nav">
+      <a href="#/painel"    data-rota="painel">Painel</a>
+      <a href="#/nova"      data-rota="nova">Nova proposta</a>
+      <a href="#/propostas" data-rota="propostas">Propostas</a>
+      <a href="#/fila"      data-rota="fila">Fila<span class="contador" id="nav-fila" hidden>0</span></a>
+    </nav>
+
+    <div class="rodape-side">
+      <div class="saude">
+        <span class="bolinha" id="saude-bolinha"></span>
+        <span id="saude-texto">verificando…</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="titulo" id="titulo">Painel</div>
+      <div class="espaco"></div>
+      <div id="acoes"></div>
+    </header>
+    <div class="conteudo" id="conteudo">
+      <div class="carregando">carregando…</div>
+    </div>
+  </main>
+</div>
+
+<script type="module" src="/static/js/app.js"></script>
+</body>
+</html>

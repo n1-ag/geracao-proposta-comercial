@@ -1,6 +1,7 @@
 # Contrato 01 — Briefing comercial
 
-**Entrada:** `entrada/transcricao.md`, `entrada/dados-cliente.md`
+**Entrada:** `entrada/transcricao.md`, `entrada/dados-cliente.md`,
+`entrada/observacoes.md` (opcional)
 **Saída:** `proposta/01-briefing.md`
 **Executor:** agente `transcricao-analyzer`
 
@@ -24,6 +25,9 @@ Esta fase **extrai fatos**. Não decide escopo, não estima esforço, não preci
 11. **Lacunas** — o que a reunião não respondeu.
 12. **Evidências** — apêndice `E01`..`En`, cada uma com a **citação literal** da
     transcrição, no máximo 300 caracteres.
+12b. **Observações do comercial** — subseção do apêndice, `O01`..`On`, cada uma
+    com a citação literal de `entrada/observacoes.md`. Só existe quando o arquivo
+    existe.
 
 ## Tabela de sinais para inferir o modelo
 
@@ -37,10 +41,29 @@ Esta fase **extrai fatos**. Não decide escopo, não estima esforço, não preci
 `natureza`: "migrar", "sair de", "trocar de plataforma" → `migracao`;
 "loja nova", "primeiro e-commerce" → `novo`.
 
+## Observações do comercial
+
+`entrada/observacoes.md` é escrito por quem conduziu a reunião, no cadastro da
+proposta. Analise-o **junto** com a transcrição: ele compõe o cenário geral,
+corrige atribuição de fala, explica o que ficou implícito e sinaliza o que o
+cliente não disse.
+
+O namespace `O##` é separado do `E##` de propósito. `E##` é **citação do
+cliente**; `O##` é **interpretação de quem estava lá**. Misturar os dois destrói
+a rastreabilidade que sustenta o gate do orçamento: quem aprova precisa saber se
+um item foi pedido pelo cliente ou deduzido pelo comercial.
+
+| Situação | O que fazer |
+|---|---|
+| Observação confirma a transcrição | cite as duas: `[E12] [O03]` |
+| Observação acrescenta contexto ausente da gravação | `[O03]` sozinho |
+| Observação **contradiz** a transcrição | prevalece a transcrição; a divergência vira lacuna declarada, dizendo qual é qual |
+| Observação afirma demanda que a transcrição não sustenta | registre `[O##]` **e** lacuna "a confirmar com o cliente" |
+
 ## Regras
 
-- Toda linha das seções 3 a 11 termina com um ou mais `[E##]`. Linha sem
-  evidência é violação de contrato.
+- Toda linha das seções 3 a 11 termina com um ou mais `[E##]` **ou `[O##]`**.
+  Linha sem evidência é violação de contrato.
 - Inferência do analista é marcada `[INFERÊNCIA]` e repetida em Lacunas.
 - Não invente nome de sistema, volume de SKU ou prazo. Se a transcrição diz
   "uns quatro mil produtos", registre "uns quatro mil produtos [E07]", não "4.000".

@@ -1,7 +1,13 @@
 # Contrato — `proposta/manifest.json`
 
-Estado único do workflow. **Só os comandos escrevem aqui.** Agentes de conteúdo
-nunca tocam neste arquivo.
+Estado único do workflow. **Só os comandos e o servidor do app escrevem aqui.**
+Agentes de conteúdo nunca tocam neste arquivo.
+
+No fluxo de terminal, quem escreve são os comandos de `.claude/commands/`. No
+app (`app/servidor.py`), quem escreve é o motor de execução, que reimplementa a
+orquestração em Python e chama `precificar.py` e `render_pdf.py` diretamente,
+sem LLM no meio. Nos dois casos a regra vale igual: agente de conteúdo não
+toca.
 
 ```json
 {
@@ -45,9 +51,20 @@ nunca tocam neste arquivo.
 
 - Estados: `pendente` | `concluida` | `desatualizada`.
 - Refazer a fase N marca **todas** as fases > N como `desatualizada`.
-- Refazer 02 ou 03 muda o `orcamento_hash`; quando o hash gravado no checkpoint
-  diverge do atual, `checkpoint_humano.status` volta a `pendente` e as fases
-  04, 05 e 06 ficam **bloqueadas** até nova aprovação explícita. É a invalidação
-  em cascata aplicada ao gate humano — e é o que impede um preço aprovado de
-  virar outro preço em silêncio.
+- Refazer 02 ou 03 **obriga** a rebaixar `checkpoint_humano.status` para
+  `pendente`, o que bloqueia as fases 04, 05 e 06 até nova aprovação explícita.
+  É a invalidação em cascata aplicada ao gate humano — o que impede um preço
+  aprovado de virar outro preço em silêncio.
+
+  **Cuidado: o rebaixamento tem que ser explícito, não derivado do hash.**
+  `orcamento_hash` recebe o `hash_entrada` do `03-orcamento.json`, e esse valor
+  é o sha256 apenas de `precos.toml`, `catalogo-modulos.toml` e
+  `condicoes-comerciais.toml` (`scripts/precificar.py`, `Dados.hash`). Ele
+  detecta mudança na **tabela de preços**, e não mudança de **escopo**: refazer
+  02 e 03 com itens diferentes produz exatamente o mesmo hash. Comparar hashes
+  para decidir se o checkpoint caiu é, portanto, insuficiente — quem refaz a
+  fase precisa zerar o checkpoint na mão.
+
+  O app mantém um segundo hash, sobre o conteúdo inteiro do orçamento, e é ele
+  que guarda o gate lá. No fluxo de terminal, a responsabilidade é do comando.
 - `versao` incrementa a cada reexecução da fase.

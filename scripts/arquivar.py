@@ -162,9 +162,10 @@ def main() -> int:
         if origem.is_dir():
             shutil.move(str(origem), str(destino / d))
 
-    # A transcrição e a ficha são o insumo: sem elas o arquivo não se explica.
+    # A transcrição, a ficha e as observações do comercial são o insumo: sem
+    # elas o arquivo não se explica.
     entradas = destino / "entrada"
-    for nome in ("transcricao.md", "dados-cliente.md"):
+    for nome in ("transcricao.md", "dados-cliente.md", "observacoes.md"):
         f = RAIZ / "entrada" / nome
         if f.is_file():
             entradas.mkdir(exist_ok=True)
