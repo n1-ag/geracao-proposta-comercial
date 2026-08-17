@@ -913,3 +913,186 @@ select.sel-comercial {
  * mas visualmente rebaixada para não competir com as ativas. */
 table.lista tr.removida td.clicavel { opacity: .5; }
 table.lista tr.removida:hover td.clicavel { opacity: .75; }
+
+/* ------------------------------------------------- indicador de execução */
+
+/* Fica na sidebar, acima da saúde: é a resposta para "está rodando alguma
+ * coisa?" de qualquer tela do app, sem precisar abrir o detalhe. */
+.exec-cartao {
+  margin: 8px 12px 0;
+  padding: 11px 13px;
+  border-radius: var(--r-card);
+  background: var(--sup-3);
+  border: 1px solid rgba(60,203,218,.28);
+  font-size: 12px;
+}
+.exec-topo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--texto);
+  margin-bottom: 6px;
+}
+.exec-topo:hover { text-decoration: none; color: var(--ciano); }
+.exec-cliente {
+  font-family: var(--f-display);
+  font-size: 12.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.exec-fase { color: var(--ciano); font-size: 11.5px; margin-bottom: 7px; }
+
+.exec-trilho {
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: rgba(255,255,255,.07);
+  overflow: hidden;
+}
+.exec-barra {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--ciano);
+  transition: width .5s ease;
+}
+
+.exec-rodape {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 7px;
+  color: var(--texto-3);
+  font-size: 11px;
+}
+.exec-linha { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exec-tempo {
+  margin-left: auto;
+  font-family: var(--f-display);
+  color: var(--texto-2);
+  white-space: nowrap;
+}
+.exec-fila { margin-top: 6px; font-size: 11px; }
+
+/* ------------------------------------------------- seção de execução */
+
+/* Durante uma geração esta é a única pergunta do comercial — "está rodando, em
+ * que pé, quanto falta?". A resposta ocupa a tela, não uma tarja. */
+.execucao {
+  position: relative;
+  background: var(--sup-3);
+  border: 1px solid rgba(60,203,218,.3);
+  border-radius: var(--r);
+  padding: 22px 24px;
+  margin-bottom: var(--gutter);
+  overflow: hidden;
+}
+.execucao::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--veu);
+  pointer-events: none;
+}
+.execucao > * { position: relative; z-index: 1; }
+
+.exec-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.girando.grande { width: 20px; height: 20px; border-width: 2.5px; }
+
+.exec-numeros {
+  margin-left: auto;
+  display: flex;
+  gap: 24px;
+  text-align: right;
+  font-size: 12px;
+}
+.exec-num {
+  font-family: var(--f-display);
+  font-size: 19px;
+  font-weight: 500;
+  color: var(--texto);
+}
+.exec-num.ciano { color: var(--ciano); }
+
+.exec-trilho.grande { height: 6px; }
+
+.passos {
+  list-style: none;
+  padding: 0;
+  margin: 18px 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 4px 18px;
+}
+.passo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 0;
+  font-size: 12.5px;
+  color: var(--texto-3);
+}
+.passo-marca {
+  width: 18px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.passo.concluida .passo-marca { color: var(--ok); }
+.passo.concluida .passo-nome  { color: var(--texto-2); }
+.passo.atual .passo-nome {
+  color: var(--ciano);
+  font-weight: 500;
+}
+.passo-tempo { margin-left: auto; font-size: 11px; white-space: nowrap; }
+
+.exec-atividade {
+  margin-top: 18px;
+  padding: 10px 13px;
+  border-radius: 6px;
+  background: rgba(4,10,26,.5);
+  font-size: 12.5px;
+  display: flex;
+  gap: 8px;
+  min-height: 40px;
+  align-items: center;
+}
+.exec-atividade #exec-atividade {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--texto-2);
+}
+.exec-atividade #exec-atividade.aviso { color: var(--ambar); }
+
+.exec-calma {
+  margin: 16px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--texto-3);
+}
+.exec-calma strong { color: var(--texto-2); }
+
+/* A mesma seção, quando a ação nem chegou a começar. */
+.execucao.falhou { border-color: rgba(224,89,107,.45); background: #1B1020; }
+.execucao.falhou::after { background: none; }
+.exec-x {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: rgba(224,89,107,.16);
+  color: #F07C8B;
+  font-size: 17px;
+  flex: none;
+}
+.exec-erro {
+  margin: 4px 0 16px;
+  font-size: 13px;
+  color: #FFC7CE;
+  line-height: 1.6;
+}

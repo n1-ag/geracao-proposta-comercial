@@ -22,6 +22,7 @@ import artefatos
 import claude_runner
 import config as cfg
 import db
+import estimativas
 import eventos
 import modelo
 import scripts_runner
@@ -159,6 +160,17 @@ _trava_atual = threading.Lock()
 def estado_da_fila() -> dict:
     with _trava_atual:
         executando = dict(_atual) if _atual else None
+
+    # A previsão acompanha o estado: quem espera precisa saber quanto falta, e
+    # o número tem que encolher conforme as fases passam.
+    if executando:
+        import time as _t
+
+        decorrido = _t.time() - executando.get("_marca_fase", _t.time())
+        executando["previsao"] = estimativas.restante(
+            executando["alvo"], executando.get("fase"), decorrido
+        )
+
     return {
         "executando": executando,
         "aguardando": db.buscar(
@@ -167,6 +179,18 @@ def estado_da_fila() -> dict:
                WHERE e.status = 'fila' ORDER BY e.id"""
         ),
     }
+
+
+def registrar_linha(proposta_id: int, texto: str) -> None:
+    """Guarda o que o agente está fazendo agora.
+
+    Quem abre a tela no meio de uma execução precisa ver a atividade atual
+    imediatamente — sem isso, a linha fica em "iniciando…" até o próximo evento,
+    que pode demorar meio minuto.
+    """
+    with _trava_atual:
+        if _atual and _atual.get("proposta_id") == proposta_id:
+            _atual["ultima_linha"] = texto
 
 
 def _publicar_fila() -> None:
@@ -225,6 +249,7 @@ def _abrir_fase(execucao_id: int, proposta_id: int, fase: str, executor: str,
         if _atual and _atual.get("execucao_id") == execucao_id:
             _atual["fase"] = fase
             _atual["tentativa"] = tentativa
+            _atual["_marca_fase"] = time.time()
     _publicar_fila()
 
     fid = db.inserir(
@@ -671,8 +696,9 @@ def _executar(execucao: dict) -> None:
 
     with _trava_atual:
         _atual = {"execucao_id": execucao["id"], "proposta_id": proposta["id"],
-                  "cliente": proposta["cliente"], "alvo": alvo, "fase": fases[0] if fases else "04",
-                  "desde": db.agora()}
+                  "cliente": proposta["cliente"], "alvo": alvo,
+                  "fase": fases[0] if fases else "04",
+                  "desde": db.agora(), "_marca_fase": time.time()}
     _publicar_fila()
 
     db.executar("UPDATE execucoes SET status='executando', comecou_em=? WHERE id=?",

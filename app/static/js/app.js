@@ -4,6 +4,7 @@
 import { api, ErroApi } from './api.js';
 import { esc } from './fmt.js';
 import { ouvir } from './sse.js';
+import * as progresso from './progresso.js';
 
 const conteudo = document.getElementById('conteudo');
 const tituloEl = document.getElementById('titulo');
@@ -155,4 +156,5 @@ window.addEventListener('hashchange', navegar);
 
 checarSaude();
 setInterval(checarSaude, 30000);
+progresso.iniciar();
 navegar();

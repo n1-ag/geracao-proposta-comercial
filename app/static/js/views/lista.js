@@ -1,9 +1,10 @@
 // Listagem de propostas, com filtros e o status comercial editável na linha.
 
 import { api } from '../api.js';
-import { badge, brl, esc, relativo } from '../fmt.js';
+import { badge, brl, esc, relativo, rotulo } from '../fmt.js';
 import { ouvir } from '../sse.js';
 import { perguntarExclusao } from '../dialogo.js';
+import { observar, rotuloFase } from '../progresso.js';
 
 let filtros = { q: '', status: '', comercial: '', plataforma: '', incluir_arquivadas: '' };
 let catalogo = null;
@@ -39,6 +40,18 @@ export function desmontar() {
   cancelar = [];
 }
 
+/** Substitui o badge da linha em execução pela etapa atual, ao vivo. */
+function acompanharLinhaViva() {
+  return observar((estado) => {
+    document.querySelectorAll('[data-fase-viva]').forEach((el) => {
+      const e = estado.executando;
+      el.textContent = e && Number(el.dataset.faseViva) === e.proposta_id && e.fase
+        ? rotuloFase(e.fase)
+        : el.dataset.padrao;
+    });
+  });
+}
+
 export async function montar({ conteudo, acoes }) {
   acoes.innerHTML = `<a class="btn primario" href="#/nova">Nova proposta</a>`;
   catalogo ||= await api.get('/api/catalogo');
@@ -61,7 +74,7 @@ export async function montar({ conteudo, acoes }) {
   await recarregar();
 
   // Uma execução que termina em outra aba muda esta lista.
-  cancelar.push(ouvir('proposta', () => recarregar()));
+  cancelar.push(ouvir('proposta', () => recarregar()), acompanharLinhaViva());
 }
 
 function select(id, opcoes, atual) {
@@ -127,7 +140,10 @@ function desenhar(d) {
       </td>
       <td class="clicavel dim">${esc(NOME_PLATAFORMA[p.plataforma_res || p.plataforma] || '—')}</td>
       <td class="clicavel">
-        ${badge(p.status, p.status_comercial)}
+        ${p.status.startsWith('executando') || p.status === 'enfileirada'
+          ? `<span class="badge executando" data-fase-viva="${p.id}"
+                   data-padrao="${esc(rotulo(p.status))}">${esc(rotulo(p.status))}</span>`
+          : badge(p.status, p.status_comercial)}
         ${p.arquivada ? '<span class="badge rascunho">removida</span>' : ''}
         ${p.erro_mensagem ? `<div class="pequeno" style="color:var(--erro)">${esc(p.erro_mensagem.slice(0, 70))}</div>` : ''}
       </td>

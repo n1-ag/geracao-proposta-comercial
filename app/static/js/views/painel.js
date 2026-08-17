@@ -3,6 +3,7 @@
 import { api } from '../api.js';
 import { brl, num, pct, esc, badge, relativo, rotulo } from '../fmt.js';
 import * as g from '../graficos.js';
+import { observar, rotuloFase } from '../progresso.js';
 
 const NOME_PLATAFORMA = {
   shopify: 'Shopify', vtex: 'VTEX', wake: 'Wake', nuvemshop: 'Nuvemshop',
@@ -16,6 +17,13 @@ function rotuloMes(periodo) {
   return m ? `${MES[+m - 1]}/${a.slice(2)}` : periodo;
 }
 
+let pararDeObservar = null;
+
+export function desmontar() {
+  pararDeObservar?.();
+  pararDeObservar = null;
+}
+
 export async function montar({ conteudo, acoes }) {
   acoes.innerHTML = `<a class="btn primario" href="#/nova">Nova proposta</a>`;
 
@@ -25,6 +33,7 @@ export async function montar({ conteudo, acoes }) {
   const p = d.pendencias;
 
   conteudo.innerHTML = `
+    <div id="faixa-execucao"></div>
     ${faixaPendencias(p)}
 
     <div class="sec">
@@ -64,6 +73,22 @@ export async function montar({ conteudo, acoes }) {
       </div>
       ${tabelaRecentes(d.recentes)}
     </div>`;
+
+  // O painel é onde o comercial fica parado esperando; ele precisa mostrar que
+  // há geração em curso sem exigir uma visita à tela de detalhe.
+  pararDeObservar = observar((estado) => {
+    const alvo = document.getElementById('faixa-execucao');
+    if (!alvo) return;
+    if (!estado.executando) { alvo.innerHTML = ''; return; }
+    const e = estado.executando;
+    alvo.innerHTML = `<div class="aviso-faixa info linha">
+      <span class="girando"></span>
+      <span><strong>Gerando a proposta da ${esc(e.cliente || '')}</strong>
+        — ${esc(e.fase ? rotuloFase(e.fase) : 'preparando')}.
+        ${esc(estado.ultimaLinha || '')}</span>
+      <a href="#/proposta/${e.proposta_id}" style="margin-left:auto">acompanhar</a>
+    </div>`;
+  });
 }
 
 // ------------------------------------------------------------------ pedaços

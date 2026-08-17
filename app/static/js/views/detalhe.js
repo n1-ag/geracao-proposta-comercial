@@ -8,23 +8,21 @@ import { api } from '../api.js';
 import { badge, brl, dataHora, duracao, esc, relativo, rotulo } from '../fmt.js';
 import { ouvir } from '../sse.js';
 import { perguntarExclusao } from '../dialogo.js';
+import { NOME_FASE, anunciarEnfileiramento, observar, estadoAtual } from '../progresso.js';
 
 let d = null;
 let id = null;
 let cancelarOuvintes = [];
 
-const NOME_FASE = {
-  '01': 'Briefing', '02': 'Escopo', '03': 'Orçamento',
-  '04': 'Narrativa', '05': 'Montagem', '06': 'Revisão',
-  '06a': 'Render do PDF', '06b': 'Revisão', auditoria: 'Auditoria de preços',
-};
 const ORDEM = ['01', '02', '03', '04', '05', '06'];
 
 export function desmontar() {
   cancelarOuvintes.forEach((f) => f());
   cancelarOuvintes = [];
   clearInterval(tickCronometro);
-  inicioFase = null;
+  tickCronometro = null;
+  inicioExecucao = null;
+  ultimaLinha = '';
 }
 
 export async function montar({ conteudo, acoes, titulo, params }) {
@@ -35,12 +33,14 @@ export async function montar({ conteudo, acoes, titulo, params }) {
   conteudo.innerHTML = desenhar();
   acoes.innerHTML = botoesTopo();
   ligar(conteudo, acoes);
-  cronometro(d.proposta.status.startsWith('executando'));
 
   // Só os eventos desta proposta interessam.
   const meu = (dados) => dados.proposta_id === id || dados.id === id;
 
   cancelarOuvintes.push(
+    // A seção de execução vem do estado global — assim ela já nasce preenchida
+    // quando o comercial abre a tela no meio de uma geração.
+    observar(pintarExecucao),
     ouvir('progresso', (dados) => { if (meu(dados)) mostrarProgresso(dados); }),
     ouvir('fase', (dados) => { if (meu(dados)) marcarFase(dados); }),
     ouvir('proposta', async (dados) => {
@@ -50,7 +50,9 @@ export async function montar({ conteudo, acoes, titulo, params }) {
       conteudo.innerHTML = desenhar();
       acoes.innerHTML = botoesTopo();
       ligar(conteudo, acoes);
-      cronometro(d.proposta.status.startsWith('executando'));
+      // `desenhar()` recria o elemento da seção vazio; sem repintar, ela some
+      // até o próximo evento chegar.
+      pintarExecucao(estadoAtual());
     }),
   );
 }
@@ -87,11 +89,8 @@ function desenhar() {
   const p = d.proposta;
   return `
     ${faixaEstado(p)}
-    <div class="progresso-vivo" id="progresso" ${p.status.startsWith('executando') ? '' : 'hidden'}>
-      <span class="girando"></span>
-      <span id="progresso-texto" class="dim">iniciando…</span>
-      <span id="cronometro" class="cronometro"></span>
-    </div>
+    <section class="execucao" id="execucao"
+             ${p.status.startsWith('executando') || p.status === 'enfileirada' ? '' : 'hidden'}></section>
 
     <div class="sec grid k2">
       ${cartaoResumo(p)}
@@ -308,63 +307,188 @@ function blocoHistorico() {
 
 // ---------------------------------------------------------------- ao vivo
 
-let inicioFase = null;
+let inicioExecucao = null;
 let tickCronometro = null;
+let ultimaLinha = '';
 
-function mostrarProgresso(dados) {
-  const caixa = document.getElementById('progresso');
-  const texto = document.getElementById('progresso-texto');
-  if (!caixa || !texto) return;
-  caixa.hidden = false;
-  caixa.classList.toggle('aviso', dados.tipo === 'aviso');
-  texto.textContent = `${dados.fase} · ${dados.texto}`;
+function tempo(s) {
+  if (s == null) return '—';
+  s = Math.max(0, Math.round(s));
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min`;
+  return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, '0')} min`;
 }
 
-/** O agente passa minutos em silêncio enquanto um subagente trabalha. Sem um
- *  relógio visível, isso é indistinguível de travamento. */
-function cronometro(ligar) {
-  clearInterval(tickCronometro);
-  const alvo = document.getElementById('cronometro');
-  if (!ligar || !alvo) { inicioFase = null; return; }
+function mostrarProgresso(dados) {
+  ultimaLinha = dados.texto || '';
+  const alvo = document.getElementById('exec-atividade');
+  if (alvo) {
+    alvo.textContent = ultimaLinha;
+    alvo.classList.toggle('aviso', dados.tipo === 'aviso');
+  }
+}
 
-  inicioFase ||= Date.now();
-  const pintar = () => {
-    const s = Math.floor((Date.now() - inicioFase) / 1000);
-    alvo.textContent = s < 60 ? `${s}s` : `${Math.floor(s / 60)}min ${s % 60}s`;
+/** A seção que responde "está rodando, em que pé, e quanto falta".
+ *
+ *  Ela é grande de propósito: durante uma geração, essa é a única pergunta que
+ *  o comercial tem, e a resposta não pode estar numa tarja de 40px. */
+function pintarExecucao(estado) {
+  const secao = document.getElementById('execucao');
+  if (!secao) return;
+
+  const e = estado?.executando;
+  const minha = e && e.proposta_id === id;
+
+  if (!minha) {
+    secao.hidden = true;
+    clearInterval(tickCronometro);
+    tickCronometro = null;
+    inicioExecucao = null;
+    return;
+  }
+
+  secao.hidden = false;
+  secao.classList.remove('falhou');
+  inicioExecucao ||= e.desde ? new Date(e.desde).getTime() : Date.now();
+
+  const previsao = e.previsao;
+  const fases = previsao?.fases || [];
+  const feitas = fases.filter((f) => f.estado === 'concluida').length;
+  const pct = fases.length
+    ? Math.round(((feitas + (previsao.total_s ? 0.5 : 0)) / fases.length) * 100)
+    : 5;
+
+  const passo = (f) => {
+    const marca = { concluida: '✓', atual: '', pendente: '' }[f.estado];
+    return `<li class="passo ${f.estado}">
+      <span class="passo-marca">${f.estado === 'atual' ? '<span class="girando"></span>' : marca || '○'}</span>
+      <span class="passo-nome">${esc(NOME_FASE[f.fase] || f.fase)}</span>
+      <span class="passo-tempo dim">${
+        f.estado === 'concluida' ? 'pronto'
+        : f.segundos <= 5 ? 'rápido'
+        : `~${tempo(f.segundos)}`}</span>
+    </li>`;
   };
-  pintar();
-  tickCronometro = setInterval(pintar, 1000);
+
+  secao.innerHTML = `
+    <div class="exec-cabecalho">
+      <span class="girando grande"></span>
+      <div>
+        <h2 class="mb0">${esc(e.fase ? NOME_FASE[e.fase] || `Fase ${e.fase}` : 'Preparando')}</h2>
+        <div class="dim pequeno">
+          ${esc(e.cliente || '')}${e.tentativa > 1 ? ` · tentativa ${e.tentativa}` : ''}
+        </div>
+      </div>
+      <div class="exec-numeros">
+        <div><span class="exec-num" id="exec-decorrido">—</span><span class="dim"> decorrido</span></div>
+        ${previsao ? `<div><span class="exec-num ciano">~${tempo(previsao.restante_s)}</span>
+          <span class="dim"> restantes</span></div>` : ''}
+      </div>
+    </div>
+
+    <div class="exec-trilho grande"><div class="exec-barra" style="width:${pct}%"></div></div>
+
+    <ul class="passos">${fases.map(passo).join('')}</ul>
+
+    <div class="exec-atividade">
+      <span class="dim">agora:</span>
+      <span id="exec-atividade">${esc(ultimaLinha || 'iniciando…')}</span>
+    </div>
+
+    <p class="exec-calma">
+      Está tudo correndo bem — o silêncio é normal, o agente passa minutos lendo e
+      escrevendo sem falar. <strong>Você pode fechar esta aba:</strong> o processo
+      continua no servidor e o resultado fica salvo.
+      ${previsao && !previsao.aprendido
+        ? '<br><span class="dim pequeno">A estimativa ainda é a média de referência; ela se ajusta ao seu histórico depois de algumas propostas.</span>'
+        : ''}
+    </p>`;
+
+  if (!tickCronometro) {
+    const pintar = () => {
+      const alvo = document.getElementById('exec-decorrido');
+      if (alvo && inicioExecucao) alvo.textContent = tempo((Date.now() - inicioExecucao) / 1000);
+    };
+    pintar();
+    tickCronometro = setInterval(pintar, 1000);
+  }
+}
+
+/** Compatibilidade com os pontos que chamavam o cronômetro antigo. */
+function cronometro(ligar) {
+  if (!ligar) {
+    clearInterval(tickCronometro);
+    tickCronometro = null;
+    inicioExecucao = null;
+  }
 }
 
 function marcarFase(dados) {
   const li = document.querySelector(`.fase[data-fase="${dados.fase}"]`);
   if (li) li.className = `fase ${dados.status === 'executando' ? 'executando' : dados.status}`;
-  const caixa = document.getElementById('progresso');
-  if (caixa && dados.status !== 'executando') caixa.classList.remove('aviso');
-  // Cada fase reinicia o relógio.
-  inicioFase = null;
-  cronometro(dados.status === 'executando');
+  if (dados.status === 'executando') ultimaLinha = '';
 }
 
 // ---------------------------------------------------------------- interação
 
 function ligar(raiz, acoes) {
-  const agir = async (fn, botao) => {
-    if (botao) botao.disabled = true;
+  /** Erro de ação aparece na tela, não num alert que o navegador pode suprimir
+   *  e que some ao primeiro clique — foi assim que um "não disparou nada"
+   *  ficou sem explicação. */
+  const mostrarFalha = (mensagem) => {
+    const secao = document.getElementById('execucao');
+    if (!secao) return alert(mensagem);
+    secao.hidden = false;
+    secao.classList.add('falhou');
+    secao.innerHTML = `
+      <div class="exec-cabecalho">
+        <span class="exec-x">×</span>
+        <div>
+          <h2 class="mb0">Não deu para iniciar</h2>
+          <div class="dim pequeno">nada foi executado; a proposta continua como estava</div>
+        </div>
+      </div>
+      <p class="exec-erro">${esc(mensagem)}</p>
+      <div class="linha">
+        <button class="btn pequeno" onclick="location.reload()">Recarregar a página</button>
+      </div>`;
+    secao.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const agir = async (fn, botao, rotuloEspera) => {
+    if (botao) {
+      botao.disabled = true;
+      if (rotuloEspera) {
+        botao.dataset.rotulo = botao.textContent;
+        botao.textContent = rotuloEspera;
+      }
+    }
     try {
       await fn();
     } catch (err) {
-      alert(err.message);
-      if (botao) botao.disabled = false;
+      mostrarFalha(err.message);
+      if (botao) {
+        botao.disabled = false;
+        if (botao.dataset.rotulo) botao.textContent = botao.dataset.rotulo;
+      }
     }
   };
 
-  acoes.querySelector('#btn-executar')?.addEventListener('click', (e) =>
-    agir(() => api.post(`/api/propostas/${id}/executar`, { desde: '01' }), e.target));
+  // Entre o clique e o primeiro evento do servidor há uma janela de segundos.
+  // Sem isto a tela fica idêntica e parece que o clique não pegou.
+  const comecar = (fn) => async (e) => {
+    ultimaLinha = 'enfileirando…';
+    anunciarEnfileiramento(d.proposta);
+    await agir(fn, e.target, 'enfileirando…');
+  };
 
-  acoes.querySelector('#btn-retomar')?.addEventListener('click', (e) =>
-    agir(() => api.post(`/api/propostas/${id}/executar`,
-                        { desde: proximaFaseAposErro() }), e.target));
+  acoes.querySelector('#btn-executar')?.addEventListener('click',
+    comecar(() => api.post(`/api/propostas/${id}/executar`, { desde: '01' })));
+
+  acoes.querySelector('#btn-retomar')?.addEventListener('click',
+    comecar(() => api.post(`/api/propostas/${id}/executar`,
+                           { desde: proximaFaseAposErro() })));
 
   acoes.querySelector('#btn-cancelar')?.addEventListener('click', (e) => {
     const emAndamento = d.execucoes.find((x) => ['fila', 'executando'].includes(x.status));
@@ -373,8 +497,8 @@ function ligar(raiz, acoes) {
     agir(() => api.post('/api/fila/cancelar', { execucao_id: emAndamento.id }), e.target);
   });
 
-  raiz.querySelector('#btn-rerender')?.addEventListener('click', (e) =>
-    agir(() => api.post(`/api/propostas/${id}/rerender`), e.target));
+  raiz.querySelector('#btn-rerender')?.addEventListener('click',
+    comecar(() => api.post(`/api/propostas/${id}/rerender`)));
 
   raiz.querySelector('#btn-excluir')?.addEventListener('click', async () => {
     const escolha = await perguntarExclusao(d.proposta);

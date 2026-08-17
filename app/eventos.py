@@ -87,6 +87,14 @@ def fase(proposta_id: int, execucao_id: int, fase_: str, status: str, **extra) -
 
 
 def progresso(proposta_id: int, fase_: str, texto: str, tipo: str = "tool") -> None:
+    # O motor guarda a última linha para quem chegar depois; o import é local
+    # porque `executor` importa este módulo.
+    try:
+        import executor
+
+        executor.registrar_linha(proposta_id, texto)
+    except Exception:  # noqa: BLE001
+        pass
     publicar("progresso", {"proposta_id": proposta_id, "fase": fase_,
                            "tipo": tipo, "texto": texto})
 

@@ -82,6 +82,29 @@ def _curto(caminho: str) -> str:
         return caminho
 
 
+def _ultima_frase(texto: str, limite: int = 150) -> str:
+    """A última frase inteira do que o agente escreveu até agora.
+
+    Cortar os últimos N caracteres crus faz a linha de progresso começar no meio
+    de uma palavra ("ntrada/dados-cliente.md existem…"), o que parece defeito.
+    Preferimos recomeçar na última fronteira de frase.
+    """
+    limpo = " ".join((texto or "").split())
+    if not limpo:
+        return ""
+    if len(limpo) <= limite:
+        return limpo
+
+    cauda = limpo[-limite:]
+    for marca in (". ", "! ", "? ", "; ", ": "):
+        corte = cauda.find(marca)
+        if 0 <= corte < limite - 30:
+            return cauda[corte + len(marca):].strip()
+    # Sem fronteira de frase, ao menos não parta a palavra.
+    espaco = cauda.find(" ")
+    return cauda[espaco + 1:].strip() if espaco > 0 else cauda.strip()
+
+
 def descrever_ferramenta(nome: str, entrada: dict) -> str | None:
     """Traduz um tool_use em uma frase que o comercial entende.
 
@@ -301,7 +324,7 @@ def executar(
                     agora = time.monotonic()
                     if agora - ultimo_delta > 0.3:
                         ultimo_delta = agora
-                        trecho = "".join(parcial)[-140:].replace("\n", " ").strip()
+                        trecho = _ultima_frase("".join(parcial))
                         if trecho:
                             eventos.progresso(proposta_id, fase, trecho, tipo="texto")
 
