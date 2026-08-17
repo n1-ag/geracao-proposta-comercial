@@ -50,6 +50,10 @@ def ler_lock() -> dict | None:
         return None
 
 
+class ConflitoDeExecucao(Exception):
+    """Duas execuções disputando os singletons do repositório."""
+
+
 class Lock:
     """Lock de arquivo com PID, para que um servidor morto não deixe o app travado."""
 
@@ -68,9 +72,11 @@ class Lock:
             fd = os.open(cfg.LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         except FileExistsError:
             dono = ler_lock() or {}
-            raise RuntimeError(
-                f"outra execução está em andamento (pid {dono.get('pid')}, "
-                f"workspace {dono.get('workspace')})"
+            # Mensagem para quem lê na tela, não para quem lê o traceback.
+            raise ConflitoDeExecucao(
+                "outra proposta está sendo gerada agora; esta entra na fila e "
+                "começa assim que aquela terminar"
+                + (f" ({dono.get('workspace')})" if dono.get("workspace") else "")
             ) from None
         with os.fdopen(fd, "w") as f:
             f.write(conteudo)
@@ -385,17 +391,18 @@ NOME_DA_FASE = {
 ORDEM = ["01", "02", "03", "04", "05", "06"]
 
 
-def _ler_manifest() -> dict:
-    alvo = cfg.SINGLETON_PROPOSTA / "manifest.json"
+def _ler_manifest(pasta: Path | None = None) -> dict:
+    alvo = (pasta or cfg.SINGLETON_PROPOSTA) / "manifest.json"
     try:
         return json.loads(alvo.read_text("utf-8"))
     except (OSError, json.JSONDecodeError):
         return {}
 
 
-def _escrever_manifest(m: dict) -> None:
-    cfg.SINGLETON_PROPOSTA.mkdir(parents=True, exist_ok=True)
-    (cfg.SINGLETON_PROPOSTA / "manifest.json").write_text(
+def _escrever_manifest(m: dict, pasta: Path | None = None) -> None:
+    destino = pasta or cfg.SINGLETON_PROPOSTA
+    destino.mkdir(parents=True, exist_ok=True)
+    (destino / "manifest.json").write_text(
         json.dumps(m, ensure_ascii=False, indent=2) + "\n", "utf-8"
     )
 
@@ -455,10 +462,17 @@ def _atualizar_manifest_fase(fase: str) -> None:
     _escrever_manifest(m)
 
 
-def gravar_checkpoint(proposta_id: int, observacoes: list[str]) -> None:
-    """Grava a aprovação no manifest, no formato que a fase 04 confere."""
-    orc = artefatos.ler_json(cfg.SINGLETON_PROPOSTA / "03-orcamento.json") or {}
-    m = _ler_manifest()
+def gravar_checkpoint(proposta_id: int, slug: str, observacoes: list[str]) -> None:
+    """Grava a aprovação no manifest, no formato que a fase 04 confere.
+
+    Escreve **direto no workspace**, sem montar nos singletons. Aprovar é
+    operação de metadado: exigir o lock de execução para isso fazia a aprovação
+    falhar sempre que outra proposta estivesse gerando — e não havia motivo,
+    porque quem for rodar a fase 04 monta o workspace na hora dela.
+    """
+    pasta = ws.caminho(slug) / "proposta"
+    orc = artefatos.ler_json(pasta / "03-orcamento.json") or {}
+    m = _ler_manifest(pasta)
     m["checkpoint_humano"] = {
         "exigido_apos": "03",
         "status": "aprovado",
@@ -471,7 +485,13 @@ def gravar_checkpoint(proposta_id: int, observacoes: list[str]) -> None:
         "observacoes": observacoes,
     }
     m["atualizado_em"] = db.hoje()
-    _escrever_manifest(m)
+    _escrever_manifest(m, pasta)
+
+    # Se esta proposta é a que está montada agora, o singleton também precisa
+    # da aprovação: um `recolher()` posterior copiaria o manifest de lá por
+    # cima do workspace e desfaria o que acabamos de gravar.
+    if ws.montado() == slug:
+        _escrever_manifest(m, cfg.SINGLETON_PROPOSTA)
 
 
 # -----------------------------------------------------------------------------
@@ -738,6 +758,8 @@ def _executar(execucao: dict) -> None:
         erro_final = "cancelada"
     except FalhaDeFase as e:
         erro_final = e.mensagem
+    except ConflitoDeExecucao as e:
+        erro_final = str(e)
     except Exception as e:  # noqa: BLE001
         # Erro não previsto é bug nosso, não do pipeline: o traceback tem que
         # aparecer no console de quem roda o servidor.

@@ -204,12 +204,9 @@ def aprovar(req, pid):
         f"Aprovado no app N1 Propostas em {db.hoje()} (usuário do SO: {getpass.getuser()})"
     )
 
-    # Escrever o checkpoint exige os singletons montados: é lá que o pipeline lê
-    # o manifest na próxima fase.
-    with executor.Lock(linha["id"], linha["slug"]):
-        ws.montar(linha["slug"])
-        executor.gravar_checkpoint(linha["id"], observacoes)
-        ws.recolher()
+    # Sem lock e sem montar: o checkpoint vai direto para o workspace. Quem
+    # rodar a fase 04 monta na vez dela.
+    executor.gravar_checkpoint(linha["id"], linha["slug"], observacoes)
 
     with db.transacao():
         db.atualizar("propostas", linha["id"], {

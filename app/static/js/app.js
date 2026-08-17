@@ -135,15 +135,10 @@ function avisar({ tipo, mensagem }) {
 }
 
 ouvir('aviso', (dados) => {
-  if (dados.tipo === 'rate_limit') {
-    avisar({
-      tipo: 'rate_limit',
-      mensagem: `Limite de uso da conta atingido${dados.mensagem.includes('reseta') ? ` — ${dados.mensagem}` : ''}. `
-        + 'As execuções em andamento param aqui; retome depois do reset.',
-    });
-  } else if (dados.tipo !== 'reconectado') {
-    avisar(dados);
-  }
+  if (dados.tipo === 'reconectado') return;
+  // A mensagem já vem pronta do servidor, com a hora do reset quando existe;
+  // reescrevê-la aqui só duplicava o texto.
+  avisar(dados);
 });
 
 ouvir('erro', (dados) => {

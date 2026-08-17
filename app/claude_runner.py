@@ -82,6 +82,20 @@ def _curto(caminho: str) -> str:
         return caminho
 
 
+def _texto_rate_limit(info: dict) -> str:
+    """Mensagem de limite com a hora real do reset, não o epoch cru."""
+    quando = info.get("resetsAt")
+    if quando:
+        from datetime import datetime
+
+        try:
+            hora = datetime.fromtimestamp(int(quando)).strftime("%H:%M")
+            return f"limite de uso da conta atingido; ele reseta às {hora}"
+        except (ValueError, OSError, OverflowError):
+            pass
+    return "limite de uso da conta atingido"
+
+
 def _ultima_frase(texto: str, limite: int = 150) -> str:
     """A última frase inteira do que o agente escreveu até agora.
 
@@ -252,6 +266,7 @@ def executar(
     # mas indistinguível de travamento na tela. O watchdog mostra que o relógio
     # está correndo.
     ultimo_sinal = [time.monotonic()]
+    ultimo_limite: dict = {}
     vivo = threading.Event()
 
     def watchdog():
@@ -337,17 +352,38 @@ def executar(
 
             elif tipo == "user":
                 for item in (evento.get("message") or {}).get("content") or []:
-                    if isinstance(item, dict) and item.get("type") == "tool_result" and item.get("is_error"):
-                        conteudo = item.get("content")
-                        texto = conteudo if isinstance(conteudo, str) else json.dumps(conteudo)[:180]
-                        eventos.progresso(proposta_id, fase, f"ferramenta falhou: {texto[:160]}", tipo="aviso")
+                    if not (isinstance(item, dict) and item.get("type") == "tool_result"
+                            and item.get("is_error")):
+                        continue
+                    conteudo = item.get("content")
+                    texto = conteudo if isinstance(conteudo, str) else json.dumps(conteudo)
+                    # Comando barrado pelo allow-list é rotina: o agente tenta
+                    # outro caminho e segue. Anunciar como "ferramenta falhou"
+                    # faz parecer que a geração quebrou.
+                    if "requires approval" in texto or "permission" in texto.lower():
+                        eventos.progresso(
+                            proposta_id, fase,
+                            "um comando foi barrado pelas permissões; o agente vai por outro caminho",
+                        )
+                    else:
+                        eventos.progresso(
+                            proposta_id, fase,
+                            f"tentativa sem sucesso, refazendo: {texto[:120]}", tipo="aviso",
+                        )
 
             elif tipo == "rate_limit_event":
-                reseta = evento.get("resetsAt") or evento.get("resets_at")
-                eventos.aviso(
-                    "rate_limit",
-                    f"limite de uso atingido{f'; reseta em {reseta}' if reseta else ''}",
-                )
+                # Evento puramente informativo sobre a janela de uso: o Claude
+                # Code o emite de tempos em tempos, quase sempre com
+                # `status: "allowed"`, e a execução segue normalmente.
+                #
+                # Não vira aviso na tela. Um banner dizendo que tudo parou
+                # enquanto o pipeline continua rodando é ruído que ensina o
+                # comercial a ignorar avisos — inclusive os que importam.
+                # Guardamos o estado e só o usamos se a fase de fato morrer,
+                # onde ele explica o porquê.
+                info = evento.get("rate_limit_info") or {}
+                if info.get("status") not in (None, "allowed"):
+                    ultimo_limite.update(info)
 
             elif tipo == "result":
                 resultado.custo_usd = float(evento.get("total_cost_usd") or 0)
@@ -382,5 +418,10 @@ def executar(
     elif resultado.exit_code not in (0, None) and not resultado.erro:
         resultado.ok = False
         resultado.erro = f"o Claude Code saiu com código {resultado.exit_code}"
+
+    # Aqui sim a informação de limite serve: a fase morreu e este é o motivo
+    # mais provável.
+    if not resultado.ok and ultimo_limite:
+        resultado.erro = f"{resultado.erro} — {_texto_rate_limit(ultimo_limite)}"
 
     return resultado

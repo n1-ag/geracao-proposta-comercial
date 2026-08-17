@@ -381,7 +381,8 @@ function pintarExecucao(estado) {
         </div>
       </div>
       <div class="exec-numeros">
-        <div><span class="exec-num" id="exec-decorrido">—</span><span class="dim"> decorrido</span></div>
+        <div><span class="exec-num" id="exec-decorrido">${
+          tempo((Date.now() - inicioExecucao) / 1000)}</span><span class="dim"> decorrido</span></div>
         ${previsao ? `<div><span class="exec-num ciano">~${tempo(previsao.restante_s)}</span>
           <span class="dim"> restantes</span></div>` : ''}
       </div>

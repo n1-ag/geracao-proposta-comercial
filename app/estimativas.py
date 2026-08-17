@@ -14,11 +14,19 @@ from __future__ import annotations
 
 import db
 
-# Segundos por fase, medidos numa proposta de implantação Shopify com uma
-# transcrição de 130 linhas. São ordem de grandeza, não promessa.
+# Segundos por fase. Medianas de execuções reais deste repositório, sobre
+# transcrições de 130 a 330 linhas. São ordem de grandeza, não promessa — e a
+# dispersão é grande, porque depende do tamanho da transcrição e de quantos
+# itens do catálogo o escopo toca.
+#
+#   01: 154s, 219s, 404s
+#   02: 293s, 498s
+#   04: 489s
+#   05: 452s, 555s, 677s
+#   06: 533s
 PADRAO = {
-    "01": 220,   # briefing: lê a transcrição inteira e numera as evidências
-    "02": 295,   # escopo: lê o catálogo de 58 itens e mapeia demanda por demanda
+    "01": 260,   # briefing: lê a transcrição inteira e numera as evidências
+    "02": 400,   # escopo: lê o catálogo de 58 itens e mapeia demanda por demanda
     "03": 2,     # orçamento: script, praticamente instantâneo
     "04": 490,   # narrativa: escreve as 8 seções dentro dos limites
     "05": 560,   # montagem: monta o HTML dos templates
