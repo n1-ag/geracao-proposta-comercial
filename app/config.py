@@ -112,7 +112,13 @@ Regras absolutas desta execução:
 3. Não peça confirmação para sobrescrever artefato: sobrescreva.
 4. NUNCA rode um subagente em background. Você é um processo headless: quando
    você termina, o processo morre e o trabalho em background morre junto.
-   Invoque a Task e AGUARDE o resultado dentro do seu próprio turno.
+   A ferramenta de subagente (`Agent`, antiga `Task`) roda em background POR
+   PADRÃO — passe `run_in_background: false` explicitamente em toda invocação e
+   AGUARDE o resultado dentro do seu próprio turno. Não use `Bash echo` como
+   espera: isso não bloqueia nada.
+   Se ainda assim o subagente voltar sem ter escrito os arquivos, faça você
+   mesmo o trabalho dele — inclusive o relatório da fase. Um artefato exigido
+   pelo contrato que não existe reprova a fase, mesmo que o resto esteja pronto.
 5. Um comando de shell por chamada. Nada de `&&`, `;`, `|` ou `&`: o allow-list
    de permissões não casa comandos compostos e eles são recusados.
 6. A última coisa da sua resposta deve ser um bloco ```json com:
