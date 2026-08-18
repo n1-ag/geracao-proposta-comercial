@@ -52,6 +52,49 @@ COMANDOS = {
     "06": "/proposta-revisao",
 }
 
+# Ferramentas por fase. O ajuste cirúrgico não recebe `Task`: é justamente a
+# delegação ao subagente que o fazia reler a transcrição e o catálogo inteiros,
+# oito minutos para mudar uma linha.
+FERRAMENTAS_AJUSTE = "Read Edit Write Grep Glob"
+
+# Um ajuste no escopo quase nunca é remapear: é tirar um item, trocar a
+# complexidade, corrigir uma quantidade. Reprocessar a fase 02 do zero para
+# isso custa minutos e reabre decisões que já estavam certas.
+PROMPT_AJUSTE_RAPIDO = """\
+Aplique os ajustes pendentes ao escopo desta proposta. **Não remapeie nada.**
+
+1. Leia `proposta/02-escopo.json`, `proposta/02-escopo.md` e `proposta/ajustes.md`.
+2. Em `ajustes.md`, aplique **todos** os blocos marcados **PENDENTE** — pode ser
+   mais de um. Se um deles já estiver de fato aplicado no escopo, não o aplique
+   de novo (duplicaria o item); registre que já estava valendo.
+3. Consulte `dados/catalogo-modulos.toml` **apenas** para os itens que os ajustes
+   tocam — para pegar o `catalogo_id` correto e o `criterio_complexidade` de quem
+   você precisar classificar.
+4. Edite `proposta/02-escopo.json` mudando somente o que os ajustes pedem.
+5. Atualize `proposta/02-escopo.md` para continuar dizendo a mesma coisa que o
+   JSON. Os dois são espelhos: se o JSON diz `alta`, **toda** menção àquele item
+   no markdown — tabela, texto corrido, lacuna que descreva a classificação —
+   passa a dizer `alta` também. Deixar os dois divergentes reprova a auditoria e
+   é pior do que não ter aplicado o ajuste.
+6. Acrescente ao fim de `02-escopo.md` uma seção "Ajuste aplicado — <data>" com
+   uma linha por mudança: o que mudou e por quê. Se algo pedido **não** pôde ser
+   aplicado, diga ali e explique.
+
+**Item que os ajustes não citam não se toca.** Nem redação, nem ordem, nem
+origem, nem observação. O trabalho é cirúrgico.
+
+Regras que continuam valendo:
+- Você **não precifica**. Não escreva cifrão, não escreva total, não some horas —
+  nem para citar, nem para negar que fez, nem entre crases. Os caracteres de
+  moeda não podem aparecer em `02-escopo.md`: a auditoria procura por eles e
+  reprova a fase. Pediram um preço específico? Registre na seção que não pôde ser
+  aplicado — quem fecha valor é uma pessoa, no botão «Fechar valor» da tela.
+- Item cotado precisa de `origem` não vazia e, quando o catálogo exigir,
+  complexidade `baixa`, `media` ou `alta`.
+- Não cote item que esteja no escopo padrão: ele já vem no valor base.
+- Não invoque subagente. Faça você mesmo, direto nos arquivos.
+"""
+
 
 @dataclass
 class Resultado:
@@ -150,7 +193,9 @@ def descrever_ferramenta(nome: str, entrada: dict) -> str | None:
 # -----------------------------------------------------------------------------
 
 
-def montar_comando(fase: str, prompt: str, session_id: str) -> list[str]:
+def montar_comando(fase: str, prompt: str, session_id: str,
+                   ferramentas: str | None = None) -> list[str]:
+    extras = ["--allowedTools", *ferramentas.split()] if ferramentas else []
     return [
         "claude", "-p", prompt,
         "--output-format", "stream-json",
@@ -168,6 +213,7 @@ def montar_comando(fase: str, prompt: str, session_id: str) -> list[str]:
         "--max-budget-usd", str(cfg.TETO_USD_FASE),
         "--session-id", session_id,
         "--append-system-prompt", cfg.CONTRATO_HEADLESS,
+        *extras,
     ]
 
 
@@ -219,6 +265,7 @@ def executar(
     log_caminho: Path,
     ao_iniciar=None,
     cancelado=None,
+    ferramentas: str | None = None,
 ) -> Resultado:
     """Roda uma fase e devolve o resultado.
 
@@ -226,7 +273,7 @@ def executar(
     encerrado. `ao_iniciar(pid, session_id)` é chamado assim que o processo sobe.
     """
     session_id = str(uuid.uuid4())
-    comando = montar_comando(fase, prompt, session_id)
+    comando = montar_comando(fase, prompt, session_id, ferramentas)
     limite = cfg.timeout_da_fase(fase)
     comeco = time.monotonic()
 

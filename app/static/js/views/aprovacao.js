@@ -10,6 +10,7 @@
 import { api } from '../api.js';
 import { esc, dataHora } from '../fmt.js';
 import { render as md, acharEvidencia } from '../md.js';
+import { ouvir } from '../sse.js';
 
 let dados = null;
 
@@ -26,11 +27,13 @@ export async function montar({ conteudo, acoes, titulo, params }) {
       Esta proposta está em <strong>${esc(p.status)}</strong>, não há orçamento esperando
       aprovação. <a href="#/proposta/${id}">Voltar ao detalhe</a>.
     </div>` + corpo(dados, { somenteLeitura: true });
+    ligarChat(conteudo, id);
     return;
   }
 
   conteudo.innerHTML = corpo(dados, { somenteLeitura: false });
   ligar(conteudo, id);
+  ligarChat(conteudo, id);
 }
 
 // ------------------------------------------------------------------- markup
@@ -54,6 +57,7 @@ function corpo(d, { somenteLeitura }) {
     ${alternativaMensal(evol, mensal)}
     ${blocoAlertas(d.alertas, somenteLeitura)}
     ${blocoLacunas(d.lacunas, somenteLeitura)}
+    ${blocoChat()}
     ${historicoAjustes(d.ajustes)}
     ${memoria(d.memoria_md)}
     ${somenteLeitura ? '' : acoesGate(d)}
@@ -650,5 +654,132 @@ function ligar(raiz, id) {
       e.target.disabled = false;
       estado.textContent = '';
     }
+  });
+}
+
+// ---------------------------------------------------------------------- chat
+
+// Perguntas que quase sempre são a primeira. Deixá-las a um clique poupa a
+// página em branco — ninguém sabe o que perguntar para um agente até ver um
+// exemplo do que dá para perguntar.
+const SUGESTOES = [
+  'Por que este item entrou no escopo?',
+  'De onde saiu o prazo?',
+  'O que ficou de fora e por quê?',
+  'Que riscos você vê neste escopo?',
+];
+
+function blocoChat() {
+  return `
+  <section class="bloco chat" id="bloco-chat">
+    <h2>Perguntar ao agente</h2>
+    <p class="dim sub">
+      Ele lê os artefatos desta proposta e responde citando a evidência.
+      Só lê: nada do que for dito aqui altera o escopo ou o valor.
+    </p>
+    <div class="chat-linha" id="chat-linha"></div>
+    <div class="chat-sugestoes" id="chat-sugestoes">
+      ${SUGESTOES.map((t) => `<button class="btn pequeno sugestao">${esc(t)}</button>`).join('')}
+    </div>
+    <form class="chat-entrada" id="chat-form">
+      <textarea id="chat-pergunta" rows="2" placeholder="Por que a busca com autocomplete foi cotada à parte?"></textarea>
+      <button class="btn primario" id="chat-enviar" type="submit">Perguntar</button>
+    </form>
+    <p class="chat-erro" id="chat-erro" hidden></p>
+  </section>`;
+}
+
+function balao(m) {
+  const eu = m.papel === 'humano';
+  const corpoTexto = eu ? `<p>${esc(m.texto)}</p>` : md(m.texto || '');
+  return `<div class="balao ${eu ? 'meu' : 'agente'}">
+    <span class="quem">${eu ? 'você' : 'agente'}</span>
+    <div class="balao-corpo">${corpoTexto}</div>
+  </div>`;
+}
+
+function ligarChat(raiz, id) {
+  const linha = raiz.querySelector('#chat-linha');
+  const form = raiz.querySelector('#chat-form');
+  const campo = raiz.querySelector('#chat-pergunta');
+  const enviar = raiz.querySelector('#chat-enviar');
+  const erro = raiz.querySelector('#chat-erro');
+  if (!linha) return;
+
+  let respondendo = false;
+  // O balão em construção fica fora do histórico: ele é substituído a cada
+  // delta, e reconstruir a conversa inteira 4×/s faria a página piscar.
+  let rascunho = null;
+
+  const fim = () => linha.scrollTop = linha.scrollHeight;
+
+  const trocarEstado = (v) => {
+    respondendo = v;
+    enviar.disabled = v;
+    enviar.textContent = v ? 'pensando…' : 'Perguntar';
+  };
+
+  const pintar = (mensagens) => {
+    linha.innerHTML = mensagens.length
+      ? mensagens.map(balao).join('')
+      : '<p class="dim vazio">Nenhuma pergunta ainda.</p>';
+    rascunho = null;
+    fim();
+  };
+
+  api.get(`/api/propostas/${id}/chat`)
+    .then((d) => { pintar(d.mensagens); if (d.respondendo) trocarEstado(true); })
+    .catch(() => pintar([]));
+
+  const perguntar = async (texto) => {
+    if (!texto.trim() || respondendo) return;
+    erro.hidden = true;
+    trocarEstado(true);
+    campo.value = '';
+    try {
+      await api.post(`/api/propostas/${id}/chat`, { pergunta: texto });
+    } catch (e) {
+      trocarEstado(false);
+      erro.textContent = e.mensagem || 'não consegui enviar a pergunta';
+      erro.hidden = false;
+    }
+  };
+
+  form.addEventListener('submit', (e) => { e.preventDefault(); perguntar(campo.value); });
+
+  // Enter envia, Shift+Enter quebra linha — como em todo campo de conversa.
+  campo.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); perguntar(campo.value); }
+  });
+
+  raiz.querySelectorAll('.sugestao').forEach((b) =>
+    b.addEventListener('click', () => { campo.value = b.textContent; campo.focus(); }));
+
+  ouvir('chat', (d) => {
+    if (Number(d.proposta_id) !== Number(id)) return;
+    const vazio = linha.querySelector('.vazio');
+    if (vazio) vazio.remove();
+
+    if (d.papel === 'humano') {
+      linha.insertAdjacentHTML('beforeend', balao(d));
+      rascunho = null;
+      fim();
+      return;
+    }
+
+    if (!rascunho) {
+      linha.insertAdjacentHTML('beforeend', balao({ papel: 'agente', texto: '' }));
+      rascunho = linha.lastElementChild;
+    }
+    const alvo = rascunho.querySelector('.balao-corpo');
+    if (d.estado === 'pensando') {
+      alvo.innerHTML = '<p class="dim pulsando">lendo os artefatos…</p>';
+    } else if (d.estado === 'lendo' && !d.texto) {
+      alvo.innerHTML = `<p class="dim pulsando">consultando ${esc(d.consultando || 'os artefatos')}…</p>`;
+    } else {
+      alvo.innerHTML = md(d.texto || '');
+    }
+    if (d.estado === 'pronto') { rascunho = null; trocarEstado(false); }
+    fim();
   });
 }

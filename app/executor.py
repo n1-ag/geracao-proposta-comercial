@@ -345,11 +345,16 @@ def _fase_claude(ctx: dict, fase: str, sufixo: str = "", tentativa: int = 1) -> 
             db.evento(ctx["proposta_id"], "fase_pulada", f"fase {fase}: artefato já válido")
             return
 
-    prompt = claude_runner.COMANDOS[fase] + (f"\n\n{sufixo}" if sufixo else "")
+    # Um alvo pode trocar o comando da fase por um prompt próprio — é assim que
+    # o ajuste pontual evita reprocessar a fase 02 inteira.
+    base = ctx.get("prompt_da_fase", {}).get(fase) or claude_runner.COMANDOS[fase]
+    ferramentas = ctx.get("ferramentas_da_fase", {}).get(fase)
+    prompt = base + (f"\n\n{sufixo}" if sufixo else "")
     log = ws.caminho(ctx["slug"]) / "logs" / f"{ctx['execucao_id']:04d}-{fase}-t{tentativa}.jsonl"
 
+    rotulo = base if base.startswith("/") else "ajuste pontual no escopo"
     fid = _abrir_fase(ctx["execucao_id"], ctx["proposta_id"], fase, "claude",
-                      claude_runner.COMANDOS[fase], tentativa)
+                      rotulo, tentativa)
     inicio = time.time()
 
     def ao_iniciar(pid, session_id):
@@ -361,6 +366,7 @@ def _fase_claude(ctx: dict, fase: str, sufixo: str = "", tentativa: int = 1) -> 
             fase, prompt, ctx["proposta_id"], log,
             ao_iniciar=ao_iniciar,
             cancelado=lambda: _foi_cancelada(ctx["execucao_id"]),
+            ferramentas=ferramentas,
         )
     except claude_runner.Cancelado:
         _fechar_fase(fid, ctx["proposta_id"], ctx["execucao_id"], fase, False,
@@ -783,15 +789,17 @@ def _executar(execucao: dict) -> None:
         "retomada": bool(execucao["retomada"] if "retomada" in execucao.keys() else 0),
         "titulo_pdf": _titulo_pdf(proposta),
         "sufixo_da_fase": {},
+        "prompt_da_fase": {},
+        "ferramentas_da_fase": {},
     }
 
     if alvo == "reajuste_02_03":
-        ctx["sufixo_da_fase"]["02"] = (
-            "Refação pedida no checkpoint. Leia `proposta/ajustes.md` e aplique o bloco "
-            "marcado PENDENTE. Preserve todo o resto do mapeamento anterior — é um "
-            "ajuste pontual, não um remapeamento do zero. Registre na seção "
-            "\"Ajustes aplicados\" o que mudou e por quê."
-        )
+        # `/proposta-escopo` delega ao escopo-mapper, que relê transcrição,
+        # briefing e o catálogo inteiro — minutos para mudar uma linha, e a
+        # chance de mexer no que ninguém pediu. Aqui o agente abre só os três
+        # arquivos que importam e edita o que foi pedido.
+        ctx["prompt_da_fase"]["02"] = claude_runner.PROMPT_AJUSTE_RAPIDO
+        ctx["ferramentas_da_fase"]["02"] = claude_runner.FERRAMENTAS_AJUSTE
 
     with _trava_atual:
         _atual = {"execucao_id": execucao["id"], "proposta_id": proposta["id"],
@@ -826,14 +834,19 @@ def _executar(execucao: dict) -> None:
                 _bloco_pdf(ctx, fases)
             else:
                 _bloco_ate_orcamento(ctx, fases)
-                if alvo == "reajuste_02_03":
-                    _marcar_ajustes_aplicados(proposta["id"], execucao["id"])
                 modelo.derrubar_checkpoint(
                     proposta["id"],
                     "o orçamento foi recalculado; a aprovação anterior não vale mais",
                 )
 
             ws.recolher()
+
+            # Depois de recolher, nunca antes: `recolher()` copia o singleton
+            # por cima do workspace, e o singleton ainda tem o `ajustes.md`
+            # antigo. Fechar os ajustes antes fazia o **PENDENTE** voltar do
+            # túmulo — e o agente da rodada seguinte reaplicava tudo de novo.
+            if alvo == "reajuste_02_03":
+                _marcar_ajustes_aplicados(proposta["id"], execucao["id"])
 
     except claude_runner.Cancelado:
         erro_final = "cancelada"

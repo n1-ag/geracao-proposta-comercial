@@ -4,7 +4,7 @@
 // conexões por origem e o app ficaria sem canal para as chamadas REST.
 // Quem quer eventos assina aqui; a conexão é compartilhada.
 
-const TIPOS = ['fila', 'fase', 'progresso', 'proposta', 'aviso', 'erro'];
+const TIPOS = ['fila', 'fase', 'progresso', 'proposta', 'aviso', 'erro', 'chat'];
 
 const ouvintes = new Map(TIPOS.map((t) => [t, new Set()]));
 let fonte = null;

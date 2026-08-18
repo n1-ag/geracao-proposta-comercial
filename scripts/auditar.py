@@ -208,7 +208,13 @@ def cmd_escopo(args) -> int:
         r.passou()
 
     if md and "R$" in md:
-        r.falha("02-escopo.md contém 'R$' — a fase 02 não precifica; quem precifica é o script")
+        # Dizer só "contém" manda quem for corrigir varrer 300 linhas à mão — e
+        # quase sempre é uma frase só, às vezes uma em que o agente jura que não
+        # escreveu valor nenhum.
+        onde = [f"linha {n}: {linha.strip()[:90]}"
+                for n, linha in enumerate(md.splitlines(), 1) if "R$" in linha]
+        r.falha("02-escopo.md contém 'R$' — a fase 02 não precifica; quem precifica "
+                "é o script. Ocorrências: " + " | ".join(onde[:5]))
     else:
         r.passou()
     return r.fim()

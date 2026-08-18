@@ -1194,3 +1194,74 @@ body.pagina-login {
   padding: 7px 10px;
 }
 #add-item optgroup { color: var(--texto-3); }
+
+/* --------------------------------------------------------------- chat ----- */
+
+.bloco.chat .sub { margin: -2px 0 14px; font-size: 12.5px; }
+
+.chat-linha {
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 2px 2px;
+}
+
+.balao { display: flex; flex-direction: column; gap: 4px; max-width: 82%; }
+.balao.meu { align-self: flex-end; align-items: flex-end; }
+
+.balao .quem {
+  font-family: var(--f-display);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+}
+
+.balao-corpo {
+  padding: 10px 13px;
+  border-radius: var(--r);
+  background: var(--sup-3);
+  border: 1px solid rgba(255,255,255,.06);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.balao.meu .balao-corpo {
+  background: rgba(60,203,218,.1);
+  border-color: rgba(60,203,218,.3);
+}
+.balao-corpo > :first-child { margin-top: 0; }
+.balao-corpo > :last-child  { margin-bottom: 0; }
+.balao-corpo p { margin: 0 0 8px; }
+.balao-corpo code { font-size: 12.5px; }
+
+/* A resposta chega em pedaços; a pulsação diz que ainda está vindo, sem
+   inventar uma barra de progresso para algo que não tem percentual. */
+.pulsando { animation: pulsa 1.4s ease-in-out infinite; }
+@keyframes pulsa { 0%,100% { opacity: .45 } 50% { opacity: .95 } }
+@media (prefers-reduced-motion: reduce) { .pulsando { animation: none; opacity: .7 } }
+
+.chat-sugestoes { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 10px; }
+
+.chat-entrada { display: flex; gap: 8px; align-items: flex-end; }
+.chat-entrada textarea {
+  flex: 1;
+  resize: vertical;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: var(--r);
+  border: 1px solid var(--sup-4);
+  background: var(--sup-1);
+  color: var(--texto);
+  font: inherit;
+  font-size: 13.5px;
+}
+.chat-entrada textarea:focus {
+  outline: none;
+  border-color: var(--ciano-esc);
+  box-shadow: 0 0 0 3px rgba(60,203,218,.14);
+}
+.chat-entrada .btn { white-space: nowrap; }
+
+.chat-erro { color: var(--erro); font-size: 13px; margin: 10px 0 0; }
