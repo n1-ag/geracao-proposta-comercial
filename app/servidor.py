@@ -36,6 +36,7 @@ import config as cfg  # noqa: E402
 import dashboard  # noqa: E402
 import db  # noqa: E402
 import eventos  # noqa: E402
+import executor as executor_mod  # noqa: E402
 from roteador import (  # noqa: E402
     RESPOSTA_JA_ENVIADA, ErroHTTP, erro_400, erro_404, resolver, rota,
 )
@@ -226,6 +227,10 @@ class Handler(BaseHTTPRequestHandler):
 
         except ErroHTTP as e:
             self.responder_erro(e)
+        except executor_mod.ConflitoDeExecucao as e:
+            # Disputa pelas pastas de trabalho não é erro do servidor: é uma
+            # espera. 409 com o motivo, nunca 500 com nome de classe Python.
+            self.responder_erro(ErroHTTP(409, "ocupado", str(e)))
         except BrokenPipeError:
             pass  # cliente fechou a aba no meio; não é erro nosso
         except Exception as e:  # noqa: BLE001

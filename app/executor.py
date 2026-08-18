@@ -477,6 +477,25 @@ def preparar_manifest(linha: dict) -> None:
     _escrever_manifest(m)
 
 
+def marcar_fase_no_manifest(pasta: Path, fase: str) -> None:
+    """Marca a fase como concluída no manifest de um workspace específico.
+
+    Existe para quem trabalha direto no workspace, sem montar nos singletons —
+    hoje o fechamento comercial, que roda a fase 03 sem entrar na fila.
+    """
+    m = _ler_manifest(pasta)
+    bloco = m.setdefault("fases", {}).setdefault(NOME_DA_FASE[fase], {"versao": 0})
+    bloco["versao"] = int(bloco.get("versao") or 0) + 1
+    bloco["status"] = "concluida"
+    bloco["atualizado_em"] = db.hoje()
+    for posterior in ORDEM[ORDEM.index(fase) + 1:]:
+        outro = m["fases"].get(NOME_DA_FASE[posterior])
+        if outro and outro.get("status") == "concluida":
+            outro["status"] = "desatualizada"
+    m["atualizado_em"] = db.hoje()
+    _escrever_manifest(m, pasta)
+
+
 def _atualizar_manifest_fase(fase: str) -> None:
     """Marca a fase como concluída e as posteriores como desatualizadas.
 

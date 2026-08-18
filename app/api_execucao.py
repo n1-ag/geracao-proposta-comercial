@@ -367,18 +367,25 @@ def fechar_valor(req, pid):
         db.evento(linha["id"], "valor_fechado" if valor else "fechamento_desfeito",
                   f"{valor or ''} {motivo}".strip())
 
-    # Reprecifica na hora, com os singletons montados só o tempo do script.
-    with executor.Lock(linha["id"], linha["slug"]):
-        ws.montar(linha["slug"])
-        ok, _orc, mensagem = scripts_runner.precificar(
-            valor_fechado=valor, motivo_fechado=motivo
-        )
-        if ok:
-            executor._atualizar_manifest_fase("03")
-        ws.recolher()
-
+    # Direto no workspace, sem lock e sem montar: recalcular um total não
+    # precisa dos singletons, e exigir o lock fazia fechar um valor falhar
+    # sempre que outra proposta estivesse gerando.
+    base = ws.caminho(linha["slug"])
+    ok, _orc, mensagem = scripts_runner.precificar(
+        valor_fechado=valor, motivo_fechado=motivo, base=base
+    )
     if not ok:
         raise erro_409("falhou_precificar", mensagem)
+
+    executor.marcar_fase_no_manifest(base / "proposta", "03")
+    # Se esta é a proposta montada, o singleton também precisa do novo total.
+    if ws.montado() == linha["slug"]:
+        import shutil as _sh
+
+        for nome in ("03-orcamento.json", "03-orcamento.md", "manifest.json"):
+            origem = base / "proposta" / nome
+            if origem.is_file():
+                _sh.copy2(origem, cfg.SINGLETON_PROPOSTA / nome)
 
     executor.sincronizar_orcamento(linha["id"], linha["slug"])
     # O número mudou: a aprovação anterior era sobre outro preço.

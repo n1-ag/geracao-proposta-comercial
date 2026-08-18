@@ -89,16 +89,25 @@ def auditar_pdf(pdf: Path) -> tuple[bool, str]:
 
 
 def precificar(hoje: str | None = None, valor_fechado=None,
-               motivo_fechado: str = "") -> tuple[bool, dict | None, str]:
-    escopo = cfg.SINGLETON_PROPOSTA / "02-escopo.json"
+               motivo_fechado: str = "", base: Path | None = None) -> tuple[bool, dict | None, str]:
+    """Roda a fase 03.
+
+    `base` permite precificar **direto num workspace**, sem montar nos
+    singletons. O script resolve `dados/` de forma absoluta (via `__file__`) e
+    aceita caminhos para escopo, ficha e saída — então não há motivo para
+    disputar o lock de execução só para recalcular um total. É o que faz fechar
+    um valor funcionar enquanto outra proposta é gerada.
+    """
+    raiz = Path(base) if base else cfg.RAIZ
+    escopo = raiz / "proposta" / "02-escopo.json"
     if not escopo.is_file():
         return False, None, "a fase 02 não produziu `proposta/02-escopo.json`"
 
     argumentos = [
         "scripts/precificar.py",
-        "--escopo", "proposta/02-escopo.json",
-        "--dados-cliente", "entrada/dados-cliente.md",
-        "--saida", "proposta/03-orcamento.json",
+        "--escopo", str(escopo),
+        "--dados-cliente", str(raiz / "entrada" / "dados-cliente.md"),
+        "--saida", str(raiz / "proposta" / "03-orcamento.json"),
     ]
     if hoje:
         argumentos += ["--hoje", hoje]
@@ -118,7 +127,7 @@ def precificar(hoje: str | None = None, valor_fechado=None,
             f"{(r.stderr or r.stdout).strip()[-1200:]}"
         )
 
-    saida = cfg.SINGLETON_PROPOSTA / "03-orcamento.json"
+    saida = raiz / "proposta" / "03-orcamento.json"
     try:
         orcamento = json.loads(saida.read_text("utf-8"))
     except (OSError, json.JSONDecodeError) as e:
