@@ -45,6 +45,7 @@ function corpo(d, { somenteLeitura }) {
 
   return `
     ${cabecalho(d, orc, prop)}
+    ${avisoFechamento(impl)}
     ${heroi(impl, evol, totais, mensal)}
     ${tabelaEscopo(impl, d.escopo)}
     ${escopoPadrao(impl)}
@@ -84,6 +85,19 @@ function cabecalho(d, orc, prop) {
         tabela de preços <code>${esc(orc.precos_versao || '?')}</code>
       </div>
     </div>
+  </div>`;
+}
+
+function avisoFechamento(impl) {
+  const f = impl.fechamento_comercial;
+  if (!f) return '';
+  return `<div class="aviso-faixa aviso">
+    <strong>Valor fechado por decisão comercial.</strong>
+    O cálculo do escopo dava ${esc(f.valor_calculado_fmt)} —
+    ${esc(f.sentido)} de ${esc(f.diferenca_fmt)}.
+    ${f.motivo ? `<div class="pequeno" style="margin-top:5px">${esc(f.motivo)}</div>` : ''}
+    <button class="btn pequeno" id="btn-desfazer-fechamento" style="margin-top:8px">
+      voltar ao valor calculado</button>
   </div>`;
 }
 
@@ -330,8 +344,32 @@ function acoesGate(d) {
     <div class="linha" style="margin-top:16px">
       <button class="btn primario" id="btn-aprovar">Aprovar e gerar PDF</button>
       <button class="btn" id="btn-ajuste">Pedir ajuste</button>
+      <button class="btn" id="btn-fechar">Fechar valor</button>
       <a class="btn" href="#/nova/${d.proposta.id}">Editar cadastro</a>
       <span class="dim pequeno" id="gate-estado"></span>
+    </div>
+
+    <div id="caixa-fechar" hidden style="margin-top:18px">
+      <div class="campos">
+        <label class="campo">
+          <span class="campo-rotulo">Valor final do projeto</span>
+          <input type="text" id="valor-fechado" inputmode="decimal"
+                 placeholder="36000 ou 36.000,00">
+        </label>
+        <label class="campo">
+          <span class="campo-rotulo">Por quê</span>
+          <input type="text" id="motivo-fechado"
+                 placeholder="ex.: negociado com o cliente; escopo reduzido no contrato">
+        </label>
+      </div>
+      <span class="campo-dica" style="display:block;margin-top:8px">
+        Substitui o total calculado pelo escopo. O valor do cálculo continua registrado
+        ao lado, com um alerta de severidade alta — nada some, e a diferença fica
+        visível para quem aprovar. Entrada e parcelas são recalculadas.
+        <strong>Não usa o agente:</strong> responde em segundos.
+      </span>
+      <button class="btn primario" id="btn-aplicar-fechamento" style="margin-top:12px">
+        Aplicar valor</button>
     </div>
 
     <div id="caixa-ajuste" hidden style="margin-top:18px">
@@ -342,6 +380,9 @@ function acoesGate(d) {
         <span class="campo-dica">
           O agente relê a transcrição e o catálogo, aplica o ajuste e o script recalcula.
           Isso <strong>derruba a aprovação</strong> e refaz as fases 02 e 03 — leva alguns minutos.
+          <br><strong>Para mudar o preço, use «Fechar valor».</strong> O agente mexe no
+          escopo, nunca no valor — se você pedir um número aqui, ele vai registrar
+          que não pôde aplicar e o total continuará saindo do cálculo.
         </span>
       </label>
       <button class="btn primario" id="btn-enviar-ajuste">Reprocessar com este ajuste</button>
@@ -408,6 +449,40 @@ function ligar(raiz, id) {
       revisarTravas();
       estado.textContent = '';
     }
+  });
+
+  // -- fechamento comercial --------------------------------------------------
+
+  const aplicarFechamento = async (valor, motivo, botao) => {
+    erro.hidden = true;
+    if (botao) botao.disabled = true;
+    estado.textContent = 'reprecificando…';
+    try {
+      const r = await api.post(`/api/propostas/${id}/fechar-valor`, { valor, motivo });
+      estado.textContent = `total agora: ${r.total_fmt}`;
+      location.reload();
+    } catch (err) {
+      mostrarErro(`<strong>Não deu para fechar o valor.</strong> ${esc(err.message)}`);
+      if (botao) botao.disabled = false;
+      estado.textContent = '';
+    }
+  };
+
+  const caixaFechar = raiz.querySelector('#caixa-fechar');
+  raiz.querySelector('#btn-fechar')?.addEventListener('click', () => {
+    caixaFechar.hidden = !caixaFechar.hidden;
+    if (!caixaFechar.hidden) raiz.querySelector('#valor-fechado').focus();
+  });
+
+  raiz.querySelector('#btn-aplicar-fechamento')?.addEventListener('click', (e) => {
+    const valor = raiz.querySelector('#valor-fechado').value.trim();
+    if (!valor) return mostrarErro('Informe o valor final do projeto.');
+    aplicarFechamento(valor, raiz.querySelector('#motivo-fechado').value.trim(), e.target);
+  });
+
+  raiz.querySelector('#btn-desfazer-fechamento')?.addEventListener('click', (e) => {
+    if (!confirm('Voltar ao valor calculado pelo escopo?')) return;
+    aplicarFechamento(null, '', e.target);
   });
 
   const caixa = raiz.querySelector('#caixa-ajuste');

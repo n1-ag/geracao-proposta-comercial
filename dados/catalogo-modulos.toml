@@ -780,6 +780,7 @@ id = "acompanhamento-golive"
 nome = "Acompanhamento de go-live"
 categoria = "apoio"
 unidade = "projeto"
+no_escopo_padrao = true
 horas_baixa = [4, 6]
 horas_media = [8, 12]
 horas_alta = [16, 24]

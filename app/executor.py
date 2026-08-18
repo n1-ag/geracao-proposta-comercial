@@ -545,8 +545,17 @@ def _bloco_ate_orcamento(ctx: dict, fases: list[str]) -> None:
             if not ok:
                 raise FalhaDeFase("03", mensagem)
 
+            # O valor fechado vive na proposta, não no orçamento: assim ele
+            # sobrevive a um reajuste de escopo. Sem isso, pedir uma correção
+            # no escopo desfaria em silêncio o preço combinado com o cliente.
+            atual = db.um("SELECT valor_fechado, motivo_fechado FROM propostas WHERE id = ?",
+                          (ctx["proposta_id"],)) or {}
             ok, _orc, mensagem = _fase_script(
-                ctx, "03", "python3 scripts/precificar.py", scripts_runner.precificar
+                ctx, "03", "python3 scripts/precificar.py",
+                lambda: scripts_runner.precificar(
+                    valor_fechado=atual.get("valor_fechado"),
+                    motivo_fechado=atual.get("motivo_fechado") or "",
+                ),
             )
             if not ok:
                 raise FalhaDeFase("03", mensagem)
@@ -744,6 +753,8 @@ def _executar(execucao: dict) -> None:
                 _bloco_pdf(ctx, fases)
             else:
                 _bloco_ate_orcamento(ctx, fases)
+                if alvo == "reajuste_02_03":
+                    _marcar_ajustes_aplicados(proposta["id"], execucao["id"])
                 modelo.derrubar_checkpoint(
                     proposta["id"],
                     "o orçamento foi recalculado; a aprovação anterior não vale mais",
@@ -795,6 +806,32 @@ def _executar(execucao: dict) -> None:
     ws.escrever_meta(proposta["slug"], linha)
     eventos.proposta(linha)
     _publicar_fila()
+
+
+def _marcar_ajustes_aplicados(proposta_id: int, execucao_id: int) -> None:
+    """Fecha os ajustes que esta rodada acabou de aplicar.
+
+    Sem isto o ajuste fica "pendente" para sempre: a tela nunca mostra que ele
+    foi processado, e — pior — `ajustes.md` continua marcando **PENDENTE**, de
+    modo que o próximo ajuste faria o agente reaplicar todos os anteriores.
+    """
+    pendentes = db.buscar(
+        "SELECT id FROM ajustes WHERE proposta_id = ? AND aplicado_em IS NULL",
+        (proposta_id,),
+    )
+    if not pendentes:
+        return
+    agora = db.agora()
+    for a in pendentes:
+        db.atualizar("ajustes", a["id"], {"aplicado_em": agora, "execucao_id": execucao_id})
+    db.evento(proposta_id, "ajustes_aplicados", f"{len(pendentes)} ajuste(s)")
+
+    # `ajustes.md` é o que o agente lê; ele precisa refletir o novo estado.
+    linha = db.um("SELECT * FROM propostas WHERE id = ?", (proposta_id,))
+    if linha:
+        import api_execucao
+
+        api_execucao.reescrever_ajustes_md(linha)
 
 
 def _resolver_estado(proposta_id: int, motivo: str) -> None:

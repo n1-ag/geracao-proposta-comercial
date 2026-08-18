@@ -281,7 +281,15 @@ def horas_do_item(dados: Dados, item: dict, sel: dict, design_do_cliente: bool) 
     return mn, mx, h, {"regra": "catalogo", "complexidade": cx, "politica_faixa": politica}, None
 
 
-def precificar_implantacao(dados: Dados, escopo: dict) -> dict:
+def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
+                           motivo_fechado: str = "") -> dict:
+    """Precifica a implantação.
+
+    `valor_fechado` é a negociação comercial entrando no cálculo pela porta da
+    frente. A regra do repositório continua valendo — nenhum agente escreve
+    valor —, mas uma pessoa pode fechar o preço, e quando fecha isso precisa
+    ficar registrado ao lado do valor calculado, não substituí-lo em silêncio.
+    """
     imp = dados.precos["implantacao"]
     slug = escopo["plataforma"]
     if slug not in imp["plataformas"]:
@@ -348,6 +356,31 @@ def precificar_implantacao(dados: Dados, escopo: dict) -> dict:
     abatimento = embutido if design_do_cliente else D(0)
     total = base + adicionais - abatimento
 
+    # Fechamento comercial: uma pessoa decidiu o preço final. O valor calculado
+    # não é apagado — fica ao lado, para que a diferença seja sempre visível.
+    fechamento = None
+    if valor_fechado is not None:
+        calculado = total
+        total = D(str(valor_fechado))
+        diferenca = total - calculado
+        fechamento = {
+            "valor_calculado": num(calculado), "valor_calculado_fmt": brl(calculado),
+            "valor_fechado": num(total), "valor_fechado_fmt": brl(total),
+            "diferenca": num(diferenca), "diferenca_fmt": brl(abs(diferenca)),
+            "sentido": "desconto" if diferenca < 0 else ("acréscimo" if diferenca > 0 else "igual"),
+            "motivo": motivo_fechado or "",
+        }
+        alertas.append({
+            "codigo": "VALOR_FECHADO_MANUALMENTE",
+            "severidade": "alta",
+            "mensagem": (
+                f"O valor final foi fechado em {brl(total)} por decisão comercial. "
+                f"O cálculo do escopo dava {brl(calculado)} "
+                f"({fechamento['sentido']} de {brl(abs(diferenca))})."
+                + (f" Motivo: {motivo_fechado}" if motivo_fechado else "")
+            ),
+        })
+
     # Prazo derivado das horas — ver o aviso REVISAR em condicoes-comerciais.toml
     pz = dados.condicoes["implantacao"]["prazo"]
     semanas = max(pz["semanas_minimas"],
@@ -403,6 +436,7 @@ def precificar_implantacao(dados: Dados, escopo: dict) -> dict:
             "abatimento_design": num(abatimento), "abatimento_design_fmt": brl(abatimento),
         },
         "total": num(total), "total_fmt": brl(total),
+        "fechamento_comercial": fechamento,
         "condicoes": {
             "parcelamento": pag["texto"],
             "entrada_pct": pag["entrada_pct"],
@@ -460,7 +494,36 @@ def ler_ficha(caminho: Path) -> dict:
 # -----------------------------------------------------------------------------
 # Orçamento completo
 # -----------------------------------------------------------------------------
-def montar_orcamento(dados: Dados, escopo: dict, ficha: dict, hoje: date) -> dict:
+def ler_valor(texto: str) -> Decimal:
+    """Interpreta um valor monetário escrito por gente ou por máquina.
+
+    O ponto é ambíguo entre as duas convenções: em `36.000,00` ele separa
+    milhar, em `36000.0` ele separa decimal. Tratar todo ponto como milhar
+    transformava o `36000.0` que o app envia em **360000** — dez vezes o preço
+    combinado. A vírgula é o desempate: onde ela existe, ela é o decimal.
+    """
+    bruto = str(texto).replace("R$", "").replace(" ", "").replace("\u00a0", "").strip()
+    if not bruto:
+        raise ValueError("valor vazio")
+
+    if "," in bruto:                       # pt-BR: ponto é milhar, vírgula é decimal
+        bruto = bruto.replace(".", "").replace(",", ".")
+    elif bruto.count(".") > 1:             # 1.234.567 — só pode ser milhar
+        bruto = bruto.replace(".", "")
+    elif "." in bruto:
+        inteiro, _, frac = bruto.partition(".")
+        if len(frac) == 3 and inteiro:     # 36.000 — milhar à brasileira
+            bruto = inteiro + frac
+        # senão (36000.0, 36000.75) o ponto é decimal e fica como está
+
+    try:
+        return D(bruto)
+    except Exception:
+        raise ValueError(f"não entendi o valor: {texto}") from None
+
+
+def montar_orcamento(dados: Dados, escopo: dict, ficha: dict, hoje: date,
+                     valor_fechado=None, motivo_fechado: str = "") -> dict:
     modelo = escopo.get("modelo_principal", "implantacao")
     validade = hoje + timedelta(days=dados.condicoes["meta"]["validade_dias_padrao"])
     if ficha.get("validade"):
@@ -496,7 +559,7 @@ def montar_orcamento(dados: Dados, escopo: dict, ficha: dict, hoje: date) -> dic
     }
 
     if modelo == "implantacao":
-        imp = precificar_implantacao(dados, escopo)
+        imp = precificar_implantacao(dados, escopo, valor_fechado, motivo_fechado)
         orc["implantacao"] = imp
         orc["alertas"] += imp.pop("alertas")
         # Regra C: a alternativa em fee mensal acompanha toda implantação.
@@ -591,6 +654,12 @@ def orcamento_md(orc: dict) -> str:
             L.append(f"| **Abatimento de design** (layout do cliente) | — | — | — | "
                      f"−{imp['design']['abatimento_fmt']} | precos.toml |")
         s = imp["subtotais"]
+        fc = imp.get("fechamento_comercial")
+        if fc:
+            L += ["", f"> **Valor fechado por decisão comercial: {fc['valor_fechado_fmt']}**",
+                  f"> O cálculo do escopo dava {fc['valor_calculado_fmt']} — "
+                  f"{fc['sentido']} de {fc['diferenca_fmt']}."
+                  + (f" Motivo: {fc['motivo']}" if fc["motivo"] else ""), ""]
         L += ["", f"**Memória:** base {imp['valor_base_fmt']} + adicionais "
                   f"{s['horas_adicionais']}h × {imp['valor_hora_fmt']} = {s['adicionais_fmt']}"
                   + (f" − design {imp['design']['abatimento_fmt']}"
@@ -656,6 +725,14 @@ def main() -> int:
     ap.add_argument("--layout-do-cliente", action="store_true")
     ap.add_argument("--converter", type=str, help="valor de implantação a converter em fee mensal")
     ap.add_argument("--pacote", type=int, help="horas/mês recomendadas -> 3 opções")
+    ap.add_argument(
+        "--valor-fechado", type=str,
+        help="fecha o total de implantação neste valor, por decisão comercial. "
+             "O cálculo do escopo é preservado ao lado e um alerta de severidade "
+             "alta registra a diferença.",
+    )
+    ap.add_argument("--motivo-fechado", type=str, default="",
+                    help="por que o valor foi fechado; entra no alerta e na memória")
     args = ap.parse_args()
 
     dados = Dados()
@@ -683,7 +760,16 @@ def main() -> int:
 
     escopo = json.loads(args.escopo.read_text(encoding="utf-8"))
     ficha = ler_ficha(args.dados_cliente)
-    orc = montar_orcamento(dados, escopo, ficha, hoje)
+    fechado = None
+    if args.valor_fechado:
+        try:
+            fechado = ler_valor(args.valor_fechado)
+        except ValueError as e:
+            raise SystemExit(f"erro: --valor-fechado inválido: {e}")
+        if fechado <= 0:
+            raise SystemExit("erro: --valor-fechado precisa ser positivo")
+
+    orc = montar_orcamento(dados, escopo, ficha, hoje, fechado, args.motivo_fechado)
 
     args.saida.parent.mkdir(parents=True, exist_ok=True)
     args.saida.write_text(json.dumps(orc, ensure_ascii=False, indent=2), encoding="utf-8")

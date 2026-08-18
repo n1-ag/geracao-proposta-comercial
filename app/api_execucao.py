@@ -9,6 +9,7 @@ import config as cfg
 import db
 import executor
 import modelo
+import scripts_runner
 import workspace as ws
 from api_propostas import carregar
 from roteador import erro_400, erro_409, rota
@@ -309,6 +310,82 @@ def ajustar(req, pid):
     _publicar(linha["id"])
 
     return 202, {"ajuste_id": ajuste_id, "ordem": ordem, "execucao_id": execucao_id}
+
+
+# -----------------------------------------------------------------------------
+# Fechamento comercial
+# -----------------------------------------------------------------------------
+
+
+@rota("POST", r"^/api/propostas/(?P<pid>\d+)/fechar-valor$")
+def fechar_valor(req, pid):
+    """Fecha o total num valor negociado, ou desfaz o fechamento.
+
+    A regra do repositório — nenhum agente escreve valor — continua de pé. O que
+    muda é que a negociação passa a ter uma porta de entrada própria: o pedido
+    vai para o `precificar.py`, que registra o valor calculado ao lado do
+    fechado e dispara um alerta de severidade alta.
+
+    Não usa LLM e não entra na fila: é só a fase 03 de novo, que é script.
+    Responde em segundos.
+    """
+    linha = carregar(pid)
+    corpo = req.json_do_corpo()
+
+    if linha["status"] in modelo.EXECUTANDO or linha["status"] == "enfileirada":
+        raise erro_409("ja_na_fila", "esta proposta está executando; espere terminar")
+    if not (ws.caminho(linha["slug"]) / "proposta" / "02-escopo.json").is_file():
+        raise erro_409("sem_escopo", "esta proposta ainda não tem escopo calculado")
+
+    bruto = corpo.get("valor")
+    motivo = (corpo.get("motivo") or "").strip()
+
+    if bruto in (None, "", 0):
+        valor = None      # desfazer: volta a valer o cálculo do escopo
+    else:
+        # Mesmo interpretador do `precificar.py`: uma segunda implementação aqui
+        # já custou um "36.000,00" virar dez vezes o preço combinado.
+        import sys as _sys
+
+        _sys.path.insert(0, str(cfg.SCRIPTS))
+        from precificar import ler_valor
+
+        try:
+            valor = float(ler_valor(bruto))
+        except ValueError as e:
+            raise erro_400("valor_invalido", str(e)) from None
+        if valor <= 0:
+            raise erro_400("valor_invalido", "o valor precisa ser maior que zero")
+
+    with db.transacao():
+        db.atualizar("propostas", linha["id"], {
+            "valor_fechado": valor,
+            "motivo_fechado": motivo or None,
+            "fechado_em": db.agora() if valor else None,
+            "atualizado_em": db.agora(),
+        })
+        db.evento(linha["id"], "valor_fechado" if valor else "fechamento_desfeito",
+                  f"{valor or ''} {motivo}".strip())
+
+    # Reprecifica na hora, com os singletons montados só o tempo do script.
+    with executor.Lock(linha["id"], linha["slug"]):
+        ws.montar(linha["slug"])
+        ok, _orc, mensagem = scripts_runner.precificar(
+            valor_fechado=valor, motivo_fechado=motivo
+        )
+        if ok:
+            executor._atualizar_manifest_fase("03")
+        ws.recolher()
+
+    if not ok:
+        raise erro_409("falhou_precificar", mensagem)
+
+    executor.sincronizar_orcamento(linha["id"], linha["slug"])
+    # O número mudou: a aprovação anterior era sobre outro preço.
+    modelo.derrubar_checkpoint(linha["id"], "o valor foi fechado por decisão comercial")
+
+    atualizada = _publicar(linha["id"])
+    return {"ok": True, "total_fmt": atualizada["total_fmt"], "valor_fechado": valor}
 
 
 # -----------------------------------------------------------------------------

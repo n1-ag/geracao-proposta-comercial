@@ -88,7 +88,8 @@ def auditar_pdf(pdf: Path) -> tuple[bool, str]:
 # -----------------------------------------------------------------------------
 
 
-def precificar(hoje: str | None = None) -> tuple[bool, dict | None, str]:
+def precificar(hoje: str | None = None, valor_fechado=None,
+               motivo_fechado: str = "") -> tuple[bool, dict | None, str]:
     escopo = cfg.SINGLETON_PROPOSTA / "02-escopo.json"
     if not escopo.is_file():
         return False, None, "a fase 02 não produziu `proposta/02-escopo.json`"
@@ -101,6 +102,10 @@ def precificar(hoje: str | None = None) -> tuple[bool, dict | None, str]:
     ]
     if hoje:
         argumentos += ["--hoje", hoje]
+    if valor_fechado:
+        argumentos += ["--valor-fechado", str(valor_fechado)]
+        if motivo_fechado:
+            argumentos += ["--motivo-fechado", motivo_fechado]
 
     r = _rodar(argumentos)
 

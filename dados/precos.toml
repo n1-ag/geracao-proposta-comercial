@@ -28,7 +28,8 @@ politica_faixa_horas = "maximo"
 
 # O que já está incluído no valor base de qualquer plataforma.
 escopo_padrao = ["home", "plp", "pdp", "sobre-nos", "politicas", "minha-conta",
-                 "menu-navegacao", "filtros", "minicart", "seo-tecnico", "checkout"]
+                 "menu-navegacao", "filtros", "minicart", "seo-tecnico", "checkout",
+                 "acompanhamento-golive"]
 
 [implantacao.plataformas.wordpress]
 nome = "WordPress"
