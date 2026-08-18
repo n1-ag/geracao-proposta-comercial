@@ -153,7 +153,6 @@ function cartaoResumo(p) {
     ${linha('Checkpoint', p.checkpoint_status === 'aprovado'
       ? `<span style="color:var(--ok)">aprovado ${esc(relativo(p.checkpoint_em))}</span>`
       : '<span class="dim">pendente</span>')}
-    ${linha('Custo de geração', p.custo_usd ? `US$ ${p.custo_usd.toFixed(2)}` : '—')}
     ${linha('Criada', esc(dataHora(p.criado_em)))}
     <div class="linha" style="margin-top:14px">
       <a class="btn pequeno" href="#/nova/${id}">Editar cadastro</a>
@@ -286,7 +285,7 @@ function blocoHistorico() {
       <span class="badge ${e.status === 'concluida' ? 'aceita' : e.status === 'erro' ? 'erro' : 'rascunho'}">${esc(e.status)}</span>
       <span>${esc(e.alvo)}</span>
       <span class="dim pequeno">${esc(dataHora(e.enfileirada_em))}
-        ${e.custo_usd ? `· US$ ${e.custo_usd.toFixed(2)}` : ''}</span>
+</span>
       ${e.erro ? `<div class="pequeno" style="color:var(--erro)">${esc(e.erro)}</div>` : ''}
     </li>`).join('');
 

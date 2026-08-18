@@ -48,6 +48,7 @@ function corpo(d, { somenteLeitura }) {
     ${avisoFechamento(impl)}
     ${heroi(impl, evol, totais, mensal)}
     ${tabelaEscopo(impl, d.escopo)}
+    ${editorEscopo(impl, d.escopo, somenteLeitura)}
     ${escopoPadrao(impl)}
     ${foraDeEscopo(d.escopo)}
     ${alternativaMensal(evol, mensal)}
@@ -135,6 +136,60 @@ function pills(origens) {
   return (origens || [])
     .map((o) => `<span class="pill-evidencia" data-ev="${esc(o)}">${esc(o)}</span>`)
     .join(' ');
+}
+
+function editorEscopo(impl, escopo, somenteLeitura) {
+  if (somenteLeitura) return '';
+  const linhas = (escopo.itens || []).map((i, k) => {
+    const cotada = (impl.linhas || []).find((l) => l.catalogo_id === i.catalogo_id) || {};
+    const semComplexidade = !i.complexidade;   // escopo padrão ou regra especial
+    const opcoes = ['baixa', 'media', 'alta']
+      .map((c) => `<option value="${c}" ${i.complexidade === c ? 'selected' : ''}>${c}</option>`)
+      .join('');
+    return `<tr data-item="${k}" data-id="${esc(i.catalogo_id)}">
+      <td>
+        <div>${esc(cotada.nome || i.catalogo_id)}</div>
+        <div class="dim pequeno mono">${esc(i.catalogo_id)}</div>
+      </td>
+      <td>${semComplexidade
+        ? '<span class="dim pequeno">regra própria</span>'
+        : `<select class="ed-complexidade">${opcoes}</select>`}</td>
+      <td><input class="ed-qtd" type="number" min="1" value="${i.quantidade || 1}"></td>
+      <td class="num dim">${esc(cotada.horas_total_fmt || '—')}</td>
+      <td class="num">${esc(cotada.valor_fmt || '—')}</td>
+      <td><button class="btn pequeno perigo ed-remover" title="remover item">×</button></td>
+    </tr>`;
+  }).join('');
+
+  return `<div class="sec card" id="editor-escopo">
+    <div class="entre" style="margin-bottom:6px">
+      <h2 class="mb0">Ajustar o escopo</h2>
+      <span class="dim pequeno">recalcula na hora, sem o agente</span>
+    </div>
+    <p class="pequeno dim mt0">
+      Mude complexidade, quantidade ou remova um item e recalcule. O
+      <code>precificar.py</code> refaz a conta — quem decide o valor continua sendo
+      o script, o que muda aqui é a escolha dos itens. A edição fica registrada
+      no escopo.
+    </p>
+
+    <div class="tabela-rolavel">
+      <table class="lista" id="tab-editor">
+        <thead><tr>
+          <th>Item</th><th>Complexidade</th><th>Qtd</th>
+          <th class="num">Horas</th><th class="num">Valor</th><th></th>
+        </tr></thead>
+        <tbody>${linhas || '<tr><td colspan="6" class="dim">nenhum item cotado</td></tr>'}</tbody>
+      </table>
+    </div>
+
+    <div class="linha" style="margin-top:14px;flex-wrap:wrap">
+      <select id="add-item" style="min-width:280px"><option value="">acrescentar item do catálogo…</option></select>
+      <button class="btn pequeno" id="btn-add">Acrescentar</button>
+      <button class="btn primario pequeno" id="btn-recalcular">Recalcular</button>
+      <span class="dim pequeno" id="editor-estado"></span>
+    </div>
+  </div>`;
 }
 
 function tabelaEscopo(impl, escopo) {
@@ -450,6 +505,95 @@ function ligar(raiz, id) {
       estado.textContent = '';
     }
   });
+
+  // -- editor de escopo ------------------------------------------------------
+
+  const editor = raiz.querySelector('#editor-escopo');
+  if (editor) {
+    const estadoEd = editor.querySelector('#editor-estado');
+    const seletor = editor.querySelector('#add-item');
+
+    // O catálogo inteiro, para saber o que dá para acrescentar.
+    api.get('/api/catalogo/itens').then(({ itens }) => {
+      const porCategoria = {};
+      for (const i of itens) {
+        if (i.no_escopo_padrao) continue;   // já está no valor base
+        (porCategoria[i.categoria || 'outros'] ||= []).push(i);
+      }
+      for (const [cat, lista] of Object.entries(porCategoria)) {
+        const g = document.createElement('optgroup');
+        g.label = cat;
+        for (const i of lista) {
+          const o = document.createElement('option');
+          o.value = i.id;
+          o.textContent = i.nome;
+          o.dataset.especial = i.regra_especial ? '1' : '';
+          g.appendChild(o);
+        }
+        seletor.appendChild(g);
+      }
+    }).catch(() => {});
+
+    const linhasAtuais = () => [...editor.querySelectorAll('#tab-editor tbody tr[data-id]')]
+      .map((tr) => ({
+        catalogo_id: tr.dataset.id,
+        complexidade: tr.querySelector('.ed-complexidade')?.value || null,
+        quantidade: Number(tr.querySelector('.ed-qtd')?.value || 1),
+      }));
+
+    editor.addEventListener('click', (e) => {
+      if (e.target.classList.contains('ed-remover')) {
+        e.target.closest('tr').remove();
+        estadoEd.textContent = 'alterado — clique em Recalcular';
+      }
+    });
+    editor.addEventListener('change', () => {
+      estadoEd.textContent = 'alterado — clique em Recalcular';
+    });
+
+    editor.querySelector('#btn-add').addEventListener('click', () => {
+      const op = seletor.selectedOptions[0];
+      if (!op || !op.value) return;
+      if (editor.querySelector(`tr[data-id="${op.value}"]`)) {
+        estadoEd.textContent = 'esse item já está no escopo';
+        return;
+      }
+      const corpo = editor.querySelector('#tab-editor tbody');
+      const vazia = corpo.querySelector('tr:not([data-id])');
+      if (vazia) vazia.remove();
+      const tr = document.createElement('tr');
+      tr.dataset.id = op.value;
+      tr.innerHTML = `
+        <td><div>${esc(op.textContent)}</div>
+            <div class="dim pequeno mono">${esc(op.value)}</div></td>
+        <td>${op.dataset.especial
+          ? '<span class="dim pequeno">regra própria</span>'
+          : `<select class="ed-complexidade">
+               <option value="baixa">baixa</option>
+               <option value="media" selected>media</option>
+               <option value="alta">alta</option></select>`}</td>
+        <td><input class="ed-qtd" type="number" min="1" value="1"></td>
+        <td class="num dim">—</td><td class="num dim">a calcular</td>
+        <td><button class="btn pequeno perigo ed-remover">×</button></td>`;
+      corpo.appendChild(tr);
+      seletor.value = '';
+      estadoEd.textContent = 'alterado — clique em Recalcular';
+    });
+
+    editor.querySelector('#btn-recalcular').addEventListener('click', async (e) => {
+      e.target.disabled = true;
+      estadoEd.textContent = 'recalculando…';
+      try {
+        const r = await api.post(`/api/propostas/${id}/escopo`, { itens: linhasAtuais() });
+        estadoEd.textContent = `total: ${r.total_fmt}`;
+        location.reload();
+      } catch (err) {
+        estadoEd.textContent = '';
+        mostrarErro(`<strong>Não deu para recalcular.</strong> ${esc(err.message)}`);
+        e.target.disabled = false;
+      }
+    });
+  }
 
   // -- fechamento comercial --------------------------------------------------
 

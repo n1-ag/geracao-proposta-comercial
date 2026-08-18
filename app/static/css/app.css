@@ -1171,3 +1171,26 @@ body.pagina-login {
   text-decoration: underline;
 }
 .sair:hover { color: var(--ciano); }
+
+/* Editor de escopo: campos compactos dentro da tabela. */
+#tab-editor select, #tab-editor input {
+  background: var(--sup-1);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 5px;
+  color: var(--texto);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 4px 8px;
+}
+#tab-editor input.ed-qtd { width: 64px; text-align: center; }
+#tab-editor select:focus, #tab-editor input:focus { outline: none; border-color: var(--ciano); }
+#add-item {
+  background: var(--sup-1);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 6px;
+  color: var(--texto);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 10px;
+}
+#add-item optgroup { color: var(--texto-3); }

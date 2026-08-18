@@ -1,0 +1,206 @@
+"""Edição direta do escopo, com reprecificação imediata.
+
+O caminho por agente ("Pedir ajuste") relê a transcrição e o catálogo, e leva
+minutos. Serve para "o megamenu já está incluso" — uma correção de
+interpretação. Não serve para negociar: quando o comercial está com o cliente na
+linha e precisa tirar um item, trocar a complexidade ou ver quanto fica sem
+determinado módulo, esperar oito minutos por uma releitura da reunião não é
+opção.
+
+Aqui o escopo é editado à mão e o `precificar.py` roda em cima. Sem LLM, sem
+fila, sem disputar as pastas de trabalho: responde em segundos.
+
+A regra de ouro continua de pé — **quem calcula é o script**. O que muda é quem
+escolhe os itens: nesta rota, uma pessoa, e a escolha fica registrada.
+"""
+
+from __future__ import annotations
+
+import json
+import tomllib
+from datetime import datetime
+
+import config as cfg
+import db
+import executor
+import modelo
+import scripts_runner
+import workspace as ws
+from api_propostas import carregar
+from roteador import erro_400, erro_409, rota
+
+COMPLEXIDADES = ("baixa", "media", "alta")
+
+
+def catalogo() -> dict:
+    with open(cfg.DADOS_REPO / "catalogo-modulos.toml", "rb") as f:
+        return {i["id"]: i for i in tomllib.load(f)["itens"]}
+
+
+@rota("GET", r"^/api/catalogo/itens$")
+def listar_itens(req):
+    """O catálogo inteiro, para a tela oferecer o que dá para acrescentar."""
+    itens = []
+    for i in catalogo().values():
+        itens.append({
+            "id": i["id"],
+            "nome": i["nome"],
+            "categoria": i.get("categoria"),
+            "descricao": i.get("descricao_proposta"),
+            "no_escopo_padrao": bool(i.get("no_escopo_padrao")),
+            "regra_especial": i.get("regra_especial"),
+            "horas": {c: i.get(f"horas_{c}") for c in COMPLEXIDADES},
+            "criterio": i.get("criterio_complexidade"),
+        })
+    return {"itens": sorted(itens, key=lambda x: (x["categoria"] or "", x["nome"]))}
+
+
+def _validar(itens: list, cat: dict) -> list:
+    limpos = []
+    for bruto in itens:
+        cid = (bruto.get("catalogo_id") or "").strip()
+        if cid not in cat:
+            raise erro_400("item_desconhecido", f"'{cid}' não existe no catálogo")
+
+        item = cat[cid]
+        complexidade = (bruto.get("complexidade") or "").strip().lower() or None
+
+        # Item de escopo padrão ou de regra especial não tem complexidade; os
+        # demais precisam de uma válida, senão `auditar.py escopo` reprova.
+        if not item.get("no_escopo_padrao") and not item.get("regra_especial"):
+            if complexidade not in COMPLEXIDADES:
+                raise erro_400(
+                    "complexidade_invalida",
+                    f"'{item['nome']}' precisa de complexidade baixa, media ou alta",
+                )
+        else:
+            complexidade = None
+
+        try:
+            qtd = int(bruto.get("quantidade") or 1)
+        except (TypeError, ValueError):
+            raise erro_400("quantidade_invalida", f"quantidade inválida em '{item['nome']}'") from None
+        if qtd < 1:
+            raise erro_400("quantidade_invalida", f"'{item['nome']}' precisa de quantidade ≥ 1")
+
+        origem = bruto.get("origem") or []
+        if isinstance(origem, str):
+            origem = [origem]
+        # `origem` não pode ficar vazia: é o que a auditoria exige e o que
+        # permite saber de onde veio cada linha meses depois.
+        if not origem:
+            origem = ["ajuste manual no gate"]
+
+        limpos.append({
+            "catalogo_id": cid,
+            "complexidade": complexidade,
+            "quantidade": qtd,
+            "design_pela_n1": bool(bruto.get("design_pela_n1", True)),
+            "origem": origem,
+            "observacao": (bruto.get("observacao") or "").strip(),
+        })
+    return limpos
+
+
+def _registrar_no_md(base, antes: list, depois: list, cat: dict, quem: str) -> None:
+    """Anexa ao `02-escopo.md` o que foi mexido à mão.
+
+    Os dois espelhos precisam contar a mesma história: `auditar.py escopo`
+    reprova item que está no JSON e não aparece no `.md`, e uma edição sem
+    rastro apagaria o porquê de um número mudar.
+    """
+    alvo = base / "proposta" / "02-escopo.md"
+    if not alvo.is_file():
+        return
+
+    nomes_antes = {i["catalogo_id"]: i for i in antes if i.get("catalogo_id")}
+    nomes_depois = {i["catalogo_id"]: i for i in depois}
+
+    linhas = []
+    for cid, i in nomes_depois.items():
+        nome = cat[cid]["nome"]
+        if cid not in nomes_antes:
+            linhas.append(f"- **Acrescentado:** `{cid}` — {nome} "
+                          f"(complexidade {i['complexidade'] or 'não se aplica'}, {i['quantidade']}×)")
+        else:
+            a = nomes_antes[cid]
+            # O JSON escrito pelo agente nem sempre traz todas as chaves —
+            # item de regra especial costuma vir sem `complexidade`.
+            ac, aq = a.get("complexidade"), a.get("quantidade", 1)
+            if ac != i["complexidade"] or aq != i["quantidade"]:
+                linhas.append(
+                    f"- **Alterado:** `{cid}` — {nome}: "
+                    f"{ac or '—'}/{aq}× → {i['complexidade'] or '—'}/{i['quantidade']}×"
+                )
+    for cid in nomes_antes:
+        if cid not in nomes_depois:
+            linhas.append(f"- **Removido:** `{cid}` — {cat[cid]['nome']}")
+
+    if not linhas:
+        return
+
+    carimbo = datetime.now().strftime("%d/%m/%Y %H:%M")
+    texto = alvo.read_text("utf-8").rstrip()
+    texto += (
+        f"\n\n## Edição manual do escopo — {carimbo}\n\n"
+        f"Feita por {quem} na tela de aprovação, sem passar pelo agente. O total "
+        f"foi recalculado por `scripts/precificar.py` sobre os itens abaixo.\n\n"
+        + "\n".join(linhas) + "\n"
+    )
+    alvo.write_text(texto, "utf-8")
+
+
+@rota("POST", r"^/api/propostas/(?P<pid>\d+)/escopo$")
+def editar_escopo(req, pid):
+    """Substitui os itens cotados e reprecifica na hora."""
+    linha = carregar(pid)
+    corpo = req.json_do_corpo()
+
+    if linha["status"] in modelo.EXECUTANDO or linha["status"] == "enfileirada":
+        raise erro_409("ja_na_fila", "esta proposta está executando; espere terminar")
+
+    base = ws.caminho(linha["slug"])
+    caminho_escopo = base / "proposta" / "02-escopo.json"
+    if not caminho_escopo.is_file():
+        raise erro_409("sem_escopo", "esta proposta ainda não tem escopo")
+
+    escopo = json.loads(caminho_escopo.read_text("utf-8"))
+    cat = catalogo()
+    antes = list(escopo.get("itens") or [])
+    depois = _validar(corpo.get("itens") or [], cat)
+
+    escopo["itens"] = depois
+    caminho_escopo.write_text(
+        json.dumps(escopo, ensure_ascii=False, indent=2) + "\n", "utf-8"
+    )
+
+    usuario = getattr(req, "usuario", None)
+    _registrar_no_md(base, antes, depois, cat, usuario["email"] if usuario else "app")
+
+    ok, _orc, mensagem = scripts_runner.precificar(
+        valor_fechado=linha["valor_fechado"],
+        motivo_fechado=linha["motivo_fechado"] or "",
+        base=base,
+    )
+    if not ok:
+        raise erro_409("falhou_precificar", mensagem)
+
+    executor.marcar_fase_no_manifest(base / "proposta", "03")
+    if ws.montado() == linha["slug"]:
+        import shutil
+
+        for nome in ("02-escopo.json", "02-escopo.md", "03-orcamento.json",
+                     "03-orcamento.md", "manifest.json"):
+            origem = base / "proposta" / nome
+            if origem.is_file():
+                shutil.copy2(origem, cfg.SINGLETON_PROPOSTA / nome)
+
+    executor.sincronizar_orcamento(linha["id"], linha["slug"])
+    modelo.derrubar_checkpoint(linha["id"], "o escopo foi editado à mão e o total mudou")
+    db.evento(linha["id"], "escopo_editado", f"{len(antes)} → {len(depois)} itens cotados")
+
+    atualizada = db.um("SELECT * FROM propostas WHERE id = ?", (linha["id"],))
+    import eventos
+
+    eventos.proposta(atualizada)
+    return {"ok": True, "total_fmt": atualizada["total_fmt"], "itens": len(depois)}
