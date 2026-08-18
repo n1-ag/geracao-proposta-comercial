@@ -19,7 +19,7 @@ import config as cfg
 _local = threading.local()
 _escrita = threading.RLock()
 
-ESQUEMA_VERSAO = 3
+ESQUEMA_VERSAO = 4
 
 
 def agora() -> str:
@@ -75,6 +75,10 @@ def migrar() -> None:
     if versao < 3:
         _rodar_ddl("esquema_v3.sql", 3)
         versao = 3
+
+    if versao < 4:
+        _rodar_ddl("esquema_v4.sql", 4)
+        versao = 4
 
     if versao > ESQUEMA_VERSAO:
         raise SystemExit(

@@ -105,26 +105,39 @@ def limpar_lock_orfao() -> str | None:
 
 
 def recuperar() -> list[str]:
-    """Conserta o que ficou pela metade quando o servidor morreu.
+    """Conserta o que ficou pela metade e **retoma sozinho** o que foi cortado.
 
-    O estado confiável não é o do banco — é o dos arquivos. Uma proposta que
-    diz 'executando' mas tem `03-orcamento.json` no disco está, de fato,
-    esperando aprovação.
+    Reiniciar o serviço mata a fase que estiver rodando. Sem retomada
+    automática, atualizar o app exigia esperar a fila esvaziar ou deixar
+    proposta parada em erro à espera de um clique — o que na prática significa
+    adiar correção porque tem trabalho em voo.
+
+    Aqui a interrupção vira só um atraso: as fases já concluídas são
+    preservadas, e a execução volta para a fila a partir da que morreu.
     """
     notas = []
+    retomar: list[tuple[int, str, str]] = []   # (proposta_id, alvo, desde_fase)
 
     nota = limpar_lock_orfao()
     if nota:
         notas.append(nota)
 
-    abertas = db.buscar("SELECT * FROM execucoes WHERE terminou_em IS NULL")
-    for e in abertas:
+    for e in db.buscar("SELECT * FROM execucoes WHERE terminou_em IS NULL"):
+        # De onde recomeçar: a fase que estava aberta quando o corte veio.
+        aberta = db.um(
+            "SELECT fase FROM fases WHERE execucao_id = ? AND terminou_em IS NULL "
+            "ORDER BY id DESC LIMIT 1",
+            (e["id"],),
+        )
+        if e["status"] == "executando" and aberta:
+            retomar.append((e["proposta_id"], e["alvo"], aberta["fase"].rstrip("ab")))
+        elif e["status"] == "fila":
+            retomar.append((e["proposta_id"], e["alvo"], e["desde_fase"] or ""))
+
         db.executar(
             "UPDATE execucoes SET status='interrompida', terminou_em=?, erro=? WHERE id=?",
-            (db.agora(), "o servidor foi reiniciado durante a execução", e["id"]),
+            (db.agora(), "o servidor foi reiniciado; a execução foi retomada", e["id"]),
         )
-    if abertas:
-        notas.append(f"{len(abertas)} execução(ões) marcada(s) como interrompida(s)")
 
     db.executar(
         "UPDATE fases SET status='erro', terminou_em=? WHERE terminou_em IS NULL",
@@ -135,7 +148,10 @@ def recuperar() -> list[str]:
         "SELECT * FROM propostas WHERE status IN ('executando_01_03','executando_02_03',"
         "'executando_04_06','enfileirada')"
     )
+    vai_retomar = {p for p, _, _ in retomar}
     for p in presas:
+        if p["id"] in vai_retomar:
+            continue          # o estado é resolvido ao reenfileirar, logo abaixo
         retrato = artefatos.Retrato(ws.caminho(p["slug"]))
         derivado, erro = retrato.status_derivado()
         if derivado == "rascunho":
@@ -149,6 +165,23 @@ def recuperar() -> list[str]:
         )
         db.registrar_mudanca(p["id"], "status", p["status"], derivado, "recuperada na subida")
         notas.append(f"#{p['id']} {p['cliente']}: {p['status']} → {derivado}")
+
+    for proposta_id, alvo, desde in retomar:
+        linha = db.um("SELECT * FROM propostas WHERE id = ?", (proposta_id,))
+        if not linha:
+            continue
+        db.executar(
+            "UPDATE propostas SET status='enfileirada', erro_mensagem=NULL, atualizado_em=? "
+            "WHERE id=?",
+            (db.agora(), proposta_id),
+        )
+        eid = enfileirar(proposta_id, alvo, desde_fase=desde or None, retomada=True)
+        db.evento(proposta_id, "retomada_automatica",
+                  f"{alvo} a partir da fase {desde or 'inicial'} (execução #{eid})")
+        notas.append(
+            f"#{proposta_id} {linha['cliente']}: retomada automática de {alvo}"
+            + (f" na fase {desde}" if desde else "")
+        )
 
     return notas
 
@@ -203,7 +236,16 @@ def _publicar_fila() -> None:
     eventos.publicar("fila", estado_da_fila())
 
 
-def enfileirar(proposta_id: int, alvo: str, desde_fase: str | None = None) -> int:
+def enfileirar(proposta_id: int, alvo: str, desde_fase: str | None = None,
+               retomada: bool = False) -> int:
+    """Põe uma execução na fila.
+
+    `retomada=True` marca que isto é a continuação de algo cortado no meio, e
+    não um pedido novo. A diferença importa: numa retomada, uma fase cujo
+    artefato já está pronto e coerente com as entradas é pulada, em vez de
+    refeita — refazer custaria minutos e dólares para reescrever um arquivo que
+    já está certo. Num pedido explícito, tudo o que foi pedido roda.
+    """
     execucao_id = db.inserir(
         "execucoes",
         {
@@ -212,6 +254,7 @@ def enfileirar(proposta_id: int, alvo: str, desde_fase: str | None = None) -> in
             "desde_fase": desde_fase,
             "status": "fila",
             "enfileirada_em": db.agora(),
+            "retomada": 1 if retomada else 0,
         },
     )
     _fila.put(execucao_id)
@@ -292,6 +335,16 @@ class FalhaDeFase(Exception):
 
 def _fase_claude(ctx: dict, fase: str, sufixo: str = "", tentativa: int = 1) -> None:
     """Roda uma fase de conteúdo e valida os quatro critérios de sucesso."""
+    # Numa retomada, o que já está pronto e coerente com as entradas não é
+    # refeito. É a diferença entre um restart custar segundos ou custar todas
+    # as fases de novo.
+    if ctx.get("retomada") and not sufixo and tentativa == 1:
+        if not artefatos.artefatos_desatualizados(fase, cfg.SINGLETON_PROPOSTA):
+            eventos.progresso(ctx["proposta_id"], fase,
+                              "já estava pronta desta rodada — pulando", tipo="texto")
+            db.evento(ctx["proposta_id"], "fase_pulada", f"fase {fase}: artefato já válido")
+            return
+
     prompt = claude_runner.COMANDOS[fase] + (f"\n\n{sufixo}" if sufixo else "")
     log = ws.caminho(ctx["slug"]) / "logs" / f"{ctx['execucao_id']:04d}-{fase}-t{tentativa}.jsonl"
 
@@ -708,6 +761,7 @@ def _executar(execucao: dict) -> None:
         "proposta_id": proposta["id"],
         "slug": proposta["slug"],
         "execucao_id": execucao["id"],
+        "retomada": bool(execucao["retomada"] if "retomada" in execucao.keys() else 0),
         "titulo_pdf": _titulo_pdf(proposta),
         "sufixo_da_fase": {},
     }
