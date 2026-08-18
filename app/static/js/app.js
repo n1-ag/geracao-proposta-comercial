@@ -149,6 +149,20 @@ ouvir('erro', (dados) => {
 
 window.addEventListener('hashchange', navegar);
 
+async function mostrarUsuario() {
+  try {
+    const { email } = await api.get('/api/eu');
+    if (!email) return;
+    document.getElementById('usuario-email').textContent = email;
+    document.getElementById('usuario').hidden = false;
+  } catch { /* o 401 já redireciona para o login */ }
+}
+
+document.getElementById('sair').addEventListener('click', async () => {
+  try { await api.post('/api/logout'); } finally { location.replace('/login'); }
+});
+
+mostrarUsuario();
 checarSaude();
 setInterval(checarSaude, 30000);
 progresso.iniciar();

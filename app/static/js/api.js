@@ -35,6 +35,12 @@ async function pedir(metodo, caminho, corpo) {
   const dados = await r.json();
   if (!r.ok) {
     const e = dados.erro || {};
+    // Sessão expirada ou inexistente: não adianta mostrar o erro numa tela que
+    // o usuário não tem mais direito de ver.
+    if (r.status === 401 && e.codigo === 'nao_autenticado') {
+      location.replace('/login');
+      throw new ErroApi(401, e.codigo, 'sessão encerrada');
+    }
     throw new ErroApi(r.status, e.codigo || 'erro', e.mensagem || 'erro desconhecido', e.detalhe);
   }
   return dados;

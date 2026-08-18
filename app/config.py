@@ -36,7 +36,9 @@ SINGLETON_SAIDA = RAIZ / "saida"
 # Servidor
 # -----------------------------------------------------------------------------
 
-HOST = "127.0.0.1"                     # nunca 0.0.0.0 — não há login
+# Nunca 0.0.0.0: em uso local não há a quem expor, e publicado quem enfrenta a
+# internet é o nginx, que termina o TLS e faz proxy para cá.
+HOST = "127.0.0.1"
 PORTA = int(os.environ.get("N1_PORTA", "7801"))
 PORTAS_ALTERNATIVAS = range(PORTA, PORTA + 10)
 

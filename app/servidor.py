@@ -3,8 +3,14 @@
 
     python3 app/servidor.py
 
-Stdlib pura: ThreadingHTTPServer + roteamento por tabela. Escuta só em 127.0.0.1
-porque não há autenticação — o app é de uso local, na máquina de quem o roda.
+Stdlib pura: ThreadingHTTPServer + roteamento por tabela.
+
+Escuta só em 127.0.0.1. Em uso local isso basta; publicado, quem fala com a
+internet é o nginx, que termina o TLS e faz proxy para cá. O app nunca se expõe
+direto.
+
+Toda requisição passa por `Handler.autenticar()` antes de chegar ao roteador —
+a lista `ABERTAS` é de exceções, para que uma rota nova nasça protegida.
 """
 
 from __future__ import annotations
@@ -25,6 +31,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import auth  # noqa: E402
 import config as cfg  # noqa: E402
 import dashboard  # noqa: E402
 import db  # noqa: E402
@@ -159,14 +166,51 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- despacho ------------------------------------------------------------
 
+    # O que responde sem sessão. Tudo o mais exige login — a lista é de
+    # exceções justamente para que uma rota nova nasça protegida por omissão.
+    ABERTAS = {
+        ("GET", "/login"),
+        ("POST", "/api/login"),
+        ("GET", "/api/saude"),      # healthcheck do nginx, sem dado sensível
+    }
+
+    def autenticar(self, metodo: str, caminho: str) -> bool:
+        """Preenche `self.usuario` e diz se o pedido pode seguir."""
+        self.usuario = auth.usuario_da_sessao(auth.ler_cookie(self.headers.get("Cookie")))
+        if self.usuario or (metodo, caminho) in self.ABERTAS:
+            return True
+
+        # Navegação de página vai para o login; chamada de API recebe 401 e
+        # deixa o front decidir — redirecionar um fetch daria HTML onde o
+        # JavaScript espera JSON.
+        aceita_html = "text/html" in (self.headers.get("Accept") or "")
+        if aceita_html and not caminho.startswith("/api/"):
+            self.send_response(302)
+            self.send_header("Location", "/login")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+        else:
+            self.responder_json(
+                401, {"erro": {"codigo": "nao_autenticado", "mensagem": "faça login para continuar"}}
+            )
+        return False
+
     def despachar(self, metodo: str):
         caminho = self.path.split("?", 1)[0].rstrip("/") or "/"
         self.corpo_lido = False
         try:
-            if caminho == "/" or caminho == "/index.html":
-                return self.servir_estatico("index.html")
+            # Estáticos são a casca e a identidade visual, servidos antes do
+            # login porque a própria página de login depende deles.
             if caminho.startswith("/static/"):
                 return self.servir_estatico(caminho[len("/static/"):])
+            if caminho == "/login":
+                return self.servir_estatico("login.html")
+
+            if not self.autenticar(metodo, caminho):
+                return
+
+            if caminho == "/" or caminho == "/index.html":
+                return self.servir_estatico("index.html")
 
             handler, grupos = resolver(metodo, caminho)
             resultado = handler(self, **grupos)
@@ -376,6 +420,7 @@ def api_eventos(req):
 
 # Importados pelo efeito colateral: cada módulo registra as rotas dele no
 # roteador ao ser carregado. Ficam no fim para que `rota` já exista.
+import api_auth  # noqa: E402,F401
 import api_propostas  # noqa: E402,F401
 import api_execucao  # noqa: E402,F401
 import api_artefatos  # noqa: E402,F401
@@ -407,9 +452,14 @@ def preparar() -> list[str]:
     cfg.DADOS_APP.mkdir(parents=True, exist_ok=True)
     cfg.WORKSPACES.mkdir(parents=True, exist_ok=True)
     db.migrar()
+
+    vencidas = auth.limpar_sessoes_vencidas()
     import executor
 
-    return executor.iniciar()
+    notas = executor.iniciar()
+    if vencidas:
+        notas.append(f"{vencidas} sessão(ões) vencida(s) removida(s)")
+    return notas
 
 
 def main():

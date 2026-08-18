@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar — N1 Propostas</title>
+<link rel="icon" href="/static/img/n1-wordmark.svg">
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="pagina-login">
+
+<div class="ambiente"></div>
+
+<main class="login-caixa">
+  <img src="/static/img/n1-wordmark.svg" alt="N1.AG" class="login-marca">
+  <div class="login-produto">Propostas</div>
+
+  <form id="form-login" class="login-form" autocomplete="on">
+    <div class="aviso-faixa erro" id="login-erro" hidden></div>
+
+    <label class="campo">
+      <span class="campo-rotulo">E-mail</span>
+      <input type="email" name="email" id="email" required autocomplete="username"
+             autofocus placeholder="comercial@n1.ag">
+    </label>
+
+    <label class="campo" style="margin-top:14px">
+      <span class="campo-rotulo">Senha</span>
+      <input type="password" name="senha" id="senha" required autocomplete="current-password">
+    </label>
+
+    <button type="submit" class="btn primario login-botao" id="entrar">Entrar</button>
+  </form>
+
+  <p class="login-nota">
+    Acesso restrito ao time comercial da N1.AG.
+  </p>
+</main>
+
+<script type="module">
+const form = document.getElementById('form-login');
+const erro = document.getElementById('login-erro');
+const botao = document.getElementById('entrar');
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  erro.hidden = true;
+  botao.disabled = true;
+  botao.textContent = 'entrando…';
+
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: document.getElementById('email').value,
+        senha: document.getElementById('senha').value,
+      }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d?.erro?.mensagem || 'não foi possível entrar');
+    // `replace` em vez de `href`: voltar no navegador não deve trazer de volta
+    // a tela de login de uma sessão que já começou.
+    location.replace('/');
+  } catch (err) {
+    erro.textContent = err.message;
+    erro.hidden = false;
+    botao.disabled = false;
+    botao.textContent = 'Entrar';
+    document.getElementById('senha').select();
+  }
+});
+</script>
+</body>
+</html>

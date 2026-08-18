@@ -1096,3 +1096,78 @@ table.lista tr.removida:hover td.clicavel { opacity: .75; }
   color: #FFC7CE;
   line-height: 1.6;
 }
+
+/* -------------------------------------------------------------- login */
+
+body.pagina-login {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-caixa {
+  position: relative;
+  z-index: 1;
+  width: min(380px, 100%);
+  background: var(--sup-2);
+  border-radius: var(--r);
+  padding: 34px 32px 28px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.45);
+}
+.login-caixa::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--borda-vidro);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
+.login-marca { width: 86px; height: auto; display: block; }
+.login-produto {
+  margin: 10px 0 26px;
+  font-family: var(--f-display);
+  font-size: 11px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--texto-3);
+}
+
+.login-botao { width: 100%; justify-content: center; margin-top: 22px; }
+
+.login-nota {
+  margin: 22px 0 0;
+  font-size: 11.5px;
+  color: var(--texto-3);
+  text-align: center;
+}
+
+.usuario {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.usuario span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sair {
+  margin-left: auto;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--texto-3);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.sair:hover { color: var(--ciano); }

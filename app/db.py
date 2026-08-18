@@ -8,6 +8,7 @@ junto com uma escrita do motor.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 import threading
 from datetime import datetime, timezone
@@ -18,7 +19,7 @@ import config as cfg
 _local = threading.local()
 _escrita = threading.RLock()
 
-ESQUEMA_VERSAO = 1
+ESQUEMA_VERSAO = 2
 
 
 def agora() -> str:
@@ -46,23 +47,61 @@ def conexao() -> sqlite3.Connection:
     return con
 
 
+def _rodar_ddl(nome: str, versao: int) -> None:
+    ddl = (Path(__file__).resolve().parent / nome).read_text("utf-8")
+    con = conexao()
+    with _escrita:
+        con.executescript(ddl)
+        con.execute(f"PRAGMA user_version = {versao}")
+
+
 def migrar() -> None:
-    """Cria o esquema se o banco for novo. Migrações futuras entram aqui,
-    comparando PRAGMA user_version."""
+    """Leva o banco até ESQUEMA_VERSAO, um degrau por vez.
+
+    Cada degrau é um arquivo `.sql` próprio e idempotente por construção: só
+    roda quando `user_version` ainda não o alcançou.
+    """
     con = conexao()
     versao = con.execute("PRAGMA user_version").fetchone()[0]
-    if versao >= ESQUEMA_VERSAO:
-        return
+
     if versao == 0:
-        ddl = (Path(__file__).resolve().parent / "esquema.sql").read_text("utf-8")
-        with _escrita:
-            con.executescript(ddl)
+        _rodar_ddl("esquema.sql", 1)   # o esquema.sql já traz PRAGMA user_version = 1
+        versao = 1
+
+    if versao < 2:
+        _rodar_ddl("esquema_v2.sql", 2)
+        versao = 2
+
+    if versao > ESQUEMA_VERSAO:
+        raise SystemExit(
+            f"erro: banco na versão {versao}, mais nova que a que este código "
+            f"entende ({ESQUEMA_VERSAO}). Atualize o app."
+        )
+
+    semear_usuario_padrao()
+
+
+# -----------------------------------------------------------------------------
+# Primeiro acesso
+# -----------------------------------------------------------------------------
+
+USUARIO_PADRAO = os.environ.get("N1_USUARIO", "comercial@n1.ag")
+SENHA_PADRAO = os.environ.get("N1_SENHA", "@genciaN1")
+
+
+def semear_usuario_padrao() -> None:
+    """Cria o primeiro login, e só enquanto não houver nenhum.
+
+    A condição importa: sem ela, trocar a senha e reiniciar o serviço traria o
+    usuário de fábrica de volta, e a senha antiga voltaria a valer.
+    """
+    if valor("SELECT COUNT(*) FROM usuarios", (), 0):
         return
-    raise SystemExit(
-        f"erro: banco na versão {versao}, o app espera {ESQUEMA_VERSAO}. "
-        f"Não há migração automática — faça backup de {cfg.BANCO} e apague-o "
-        f"para reconstruir com `python3 app/importar.py`."
-    )
+
+    import auth
+
+    auth.criar_usuario(USUARIO_PADRAO, SENHA_PADRAO)
+    evento(None, "usuario_semeado", USUARIO_PADRAO)
 
 
 # -----------------------------------------------------------------------------

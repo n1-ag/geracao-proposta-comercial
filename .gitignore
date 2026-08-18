@@ -10,6 +10,11 @@
 /entrada/*.docx
 /entrada/*.txt
 
+# Segredos de infraestrutura — o repositório é público
+/.env
+/.env.*
+!/.env.exemplo
+
 # Ruído
 __pycache__/
 *.pyc
