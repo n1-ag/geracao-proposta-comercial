@@ -345,16 +345,13 @@ def _fase_claude(ctx: dict, fase: str, sufixo: str = "", tentativa: int = 1) -> 
         _fechar_fase(fid, ctx["proposta_id"], ctx["execucao_id"], fase, False, **campos)
         raise FalhaDeFase(fase, r.erro or "a fase falhou sem dizer por quê")
 
-    # Terceiro critério: os artefatos existem e são desta rodada. Um agente que
-    # "concluiu" sem escrever nada deixaria o arquivo velho passar por novo.
-    faltando = [
-        n for n in artefatos.ARTEFATO_DA_FASE[fase]
-        if not (cfg.SINGLETON_PROPOSTA / n).is_file()
-        or (cfg.SINGLETON_PROPOSTA / n).stat().st_mtime < inicio - 2
-    ]
+    # Terceiro critério: os artefatos existem e são posteriores às entradas da
+    # fase. Comparar com o início da tentativa reprovava a retentativa em que o
+    # agente, corretamente, não reescreveu um arquivo que já estava bom.
+    faltando = artefatos.artefatos_desatualizados(fase, cfg.SINGLETON_PROPOSTA)
     if faltando:
         _fechar_fase(fid, ctx["proposta_id"], ctx["execucao_id"], fase, False, **campos)
-        mensagem = f"a fase {fase} terminou sem escrever: {', '.join(faltando)}"
+        mensagem = f"a fase {fase} não deixou artefato válido: {', '.join(faltando)}"
         if r.negacoes:
             mensagem += (
                 f". O allow-list de .claude/settings.json barrou "

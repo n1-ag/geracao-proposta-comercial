@@ -59,8 +59,14 @@ MODELOS = {
 MODELO_ECONOMICO = "sonnet"            # usado quando ECONOMICO está ligado
 ECONOMICO = os.environ.get("N1_ECONOMICO", "") == "1"
 
-# Disjuntor por fase, em dólares. Protege contra loop de tool-use.
-TETO_USD_FASE = float(os.environ.get("N1_TETO_USD", "3.0"))
+# Disjuntor por fase, em dólares. É proteção contra loop de tool-use, não
+# orçamento: precisa ficar bem acima do que uma fase custa quando dá certo.
+#
+# Custos observados em execuções reais: 01 ≈ 1,30 · 02 ≈ 2,25 · 04 ≈ 3,02 ·
+# 05 ≈ 3,04 · 06 ≈ 2,01. Com o teto em 3,00 as fases 04 e 05 morriam de
+# `error_max_budget_usd` exatamente na linha de chegada, depois de dez minutos
+# de trabalho — o disjuntor virou a maior causa de falha.
+TETO_USD_FASE = float(os.environ.get("N1_TETO_USD", "8.0"))
 
 # Timeouts em segundos. Estourou → SIGTERM, 5 s, SIGKILL.
 TIMEOUTS = {
@@ -102,10 +108,15 @@ Regras absolutas desta execução:
 2. Diante de ambiguidade, escolha a opção mais conservadora, registre o ponto em
    Lacunas e siga em frente.
 3. Não peça confirmação para sobrescrever artefato: sobrescreva.
-4. A última coisa da sua resposta deve ser um bloco ```json com:
+4. NUNCA rode um subagente em background. Você é um processo headless: quando
+   você termina, o processo morre e o trabalho em background morre junto.
+   Invoque a Task e AGUARDE o resultado dentro do seu próprio turno.
+5. Um comando de shell por chamada. Nada de `&&`, `;`, `|` ou `&`: o allow-list
+   de permissões não casa comandos compostos e eles são recusados.
+6. A última coisa da sua resposta deve ser um bloco ```json com:
    {"fase":"NN","status":"ok|erro","artefatos":["caminho",...],
     "resumo":"uma frase","alertas":[],"lacunas_novas":0}
-5. Não rode git, não instale nada, e não altere dados/, specs/ nem templates/.
+7. Não rode git, não instale nada, e não altere dados/, specs/ nem templates/.
 """
 
 # -----------------------------------------------------------------------------

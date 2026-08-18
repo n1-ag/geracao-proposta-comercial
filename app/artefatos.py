@@ -25,6 +25,19 @@ from precificar import ler_ficha  # noqa: E402
 
 FASES = ["01", "02", "03", "04", "05", "06"]
 
+# De que cada fase depende. Um artefato só é "desta rodada" se for mais novo
+# que tudo que a fase leu — comparar com o início da tentativa reprovaria uma
+# retentativa em que o agente, com razão, não reescreveu um arquivo que já
+# estava correto.
+ENTRADA_DA_FASE = {
+    "01": ["../entrada/transcricao.md", "../entrada/dados-cliente.md"],
+    "02": ["01-briefing.md", "ajustes.md"],
+    "03": ["02-escopo.json"],
+    "04": ["03-orcamento.json", "02-escopo.md", "ajustes.md"],
+    "05": ["04-narrativa.md", "03-orcamento.json"],
+    "06": ["proposta.html"],
+}
+
 # Artefato canônico de cada fase, relativo à pasta proposta/ do workspace.
 ARTEFATO_DA_FASE = {
     "01": ["01-briefing.md"],
@@ -46,6 +59,30 @@ def ler_json(caminho: Path) -> dict | None:
         return json.loads(caminho.read_text("utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
+
+
+def artefatos_desatualizados(fase: str, pasta: Path) -> list[str]:
+    """Artefatos da fase que faltam ou são anteriores às entradas dela.
+
+    É a checagem que separa "o agente produziu" de "sobrou da rodada passada".
+    Um arquivo intocado numa retentativa continua válido, desde que seja mais
+    novo do que aquilo que a fase leu para produzi-lo.
+    """
+    entradas = []
+    for rel in ENTRADA_DA_FASE.get(fase, []):
+        alvo = pasta / rel
+        if alvo.is_file():
+            entradas.append(alvo.stat().st_mtime)
+    piso = max(entradas) if entradas else 0
+
+    problemas = []
+    for nome in ARTEFATO_DA_FASE.get(fase, []):
+        alvo = pasta / nome
+        if not alvo.is_file():
+            problemas.append(f"{nome} (não existe)")
+        elif alvo.stat().st_mtime < piso - 2:
+            problemas.append(f"{nome} (mais antigo que as entradas da fase)")
+    return problemas
 
 
 def hash_orcamento(orc: dict) -> str:
