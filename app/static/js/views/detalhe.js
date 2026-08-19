@@ -80,7 +80,8 @@ function botoesTopo() {
     return `<button class="btn primario" id="btn-retomar">Retomar</button>`;
   }
   if (p.pdf_caminho) {
-    return `<a class="btn primario" href="/api/propostas/${id}/pdf?baixar=1">Baixar PDF</a>`;
+    return `<a class="btn primario" href="/api/propostas/${id}/pdf?baixar=1">Baixar PDF</a>
+      <button class="btn" id="btn-reabrir" title="volta ao gate para mexer no escopo">Reabrir e editar escopo</button>`;
   }
   return '';
 }
@@ -208,6 +209,11 @@ function blocoPdf(p) {
       <h2 class="mb0">PDF</h2>
       <div class="linha">
         <span class="dim pequeno">${p.pdf_paginas || '?'} páginas · ${esc(relativo(p.pdf_gerado_em))}</span>
+        ${p.checkpoint_status !== 'aprovado' ? `<p class="aviso-faixa aviso" style="margin:0 0 10px">
+          <strong>O escopo mudou depois deste PDF.</strong> Ele continua aqui porque
+          pode já ter ido para o cliente, mas não vale mais: aprove de novo para
+          gerar a versão atual.
+        </p>` : ''}
         <a class="btn pequeno" href="/api/propostas/${id}/pdf" target="_blank">Abrir</a>
         <a class="btn pequeno primario" href="/api/propostas/${id}/pdf?baixar=1">Baixar</a>
         <button class="btn pequeno" id="btn-rerender" title="refaz só o PDF a partir do HTML atual, sem reexecutar agente">Re-gerar</button>
@@ -495,6 +501,17 @@ function ligar(raiz, acoes) {
     if (!emAndamento) return;
     if (!confirm('Cancelar a execução? Os artefatos já produzidos são preservados.')) return;
     agir(() => api.post('/api/fila/cancelar', { execucao_id: emAndamento.id }), e.target);
+  });
+
+  acoes.querySelector('#btn-reabrir')?.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    try {
+      await api.post(`/api/propostas/${id}/reabrir`, {});
+      location.hash = `#/proposta/${id}/aprovar`;
+    } catch (err) {
+      e.target.disabled = false;
+      alert(err.message || 'não deu para reabrir');
+    }
   });
 
   raiz.querySelector('#btn-rerender')?.addEventListener('click',

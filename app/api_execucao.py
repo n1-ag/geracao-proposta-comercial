@@ -70,6 +70,29 @@ def executar(req, pid):
     }
 
 
+@rota("POST", r"^/api/propostas/(?P<pid>\d+)/reabrir$")
+def reabrir(req, pid):
+    """Devolve uma proposta já gerada ao gate, para mexer no escopo.
+
+    O PDF continua no disco e continua baixável — ele pode já ter sido enviado
+    ao cliente, e sumir com ele no meio de uma negociação é pior do que
+    mostrá-lo marcado como vencido.
+    """
+    linha = carregar(pid)
+    if linha["status"] in modelo.EXECUTANDO or linha["status"] == "enfileirada":
+        raise erro_409("ja_na_fila", "esta proposta está executando; espere terminar")
+    if linha["status"] != modelo.GERADA:
+        raise erro_409(
+            "nao_gerada",
+            f"esta proposta está em '{linha['status']}' — reabrir só vale para proposta já gerada",
+        )
+
+    modelo.reabrir_para_gate(linha["id"], "reaberta para edição do escopo")
+    db.evento(linha["id"], "reaberta", "voltou ao gate para edição do escopo")
+    _publicar(linha["id"])
+    return {"ok": True, "status": modelo.AGUARDANDO}
+
+
 @rota("POST", r"^/api/propostas/(?P<pid>\d+)/rerender$")
 def rerender(req, pid):
     """Refaz só o PDF, a partir do HTML que já existe. Não reexecuta agente
@@ -389,7 +412,7 @@ def fechar_valor(req, pid):
 
     executor.sincronizar_orcamento(linha["id"], linha["slug"])
     # O número mudou: a aprovação anterior era sobre outro preço.
-    modelo.derrubar_checkpoint(linha["id"], "o valor foi fechado por decisão comercial")
+    modelo.reabrir_para_gate(linha["id"], "o valor foi fechado por decisão comercial")
 
     atualizada = _publicar(linha["id"])
     return {"ok": True, "total_fmt": atualizada["total_fmt"], "valor_fechado": valor}

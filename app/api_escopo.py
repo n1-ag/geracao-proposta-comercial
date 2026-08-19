@@ -95,6 +95,9 @@ def _validar(itens: list, cat: dict) -> list:
             "catalogo_id": cid,
             "complexidade": complexidade,
             "quantidade": qtd,
+            # O nome que o cliente lê. Sem ele, itens repetidos viram linhas
+            # idênticas no PDF com preços diferentes.
+            "rotulo": (bruto.get("rotulo") or "").strip(),
             "design_pela_n1": bool(bruto.get("design_pela_n1", True)),
             "origem": origem,
             "observacao": (bruto.get("observacao") or "").strip(),
@@ -113,28 +116,69 @@ def _registrar_no_md(base, antes: list, depois: list, cat: dict, quem: str) -> N
     if not alvo.is_file():
         return
 
-    nomes_antes = {i["catalogo_id"]: i for i in antes if i.get("catalogo_id")}
-    nomes_depois = {i["catalogo_id"]: i for i in depois}
+    # A chave é (`catalogo_id`, `rotulo`), não só o id: uma proposta pode cotar
+    # o mesmo tipo várias vezes — cinco páginas institucionais diferentes — e
+    # indexar só pelo id colapsaria as cinco numa linha de rastro, escondendo
+    # justamente o que a edição fez.
+    def chavear(itens):
+        m = {}
+        for i in itens:
+            cid = i.get("catalogo_id")
+            if cid:
+                m.setdefault((cid, (i.get("rotulo") or "").strip()), []).append(i)
+        return m
+
+    antes_k, depois_k = chavear(antes), chavear(depois)
+
+    def descrever(i, cid):
+        rot = (i.get("rotulo") or "").strip()
+        nome = cat[cid]["nome"]
+        return f"«{rot}»" if rot else nome
 
     linhas = []
-    for cid, i in nomes_depois.items():
-        nome = cat[cid]["nome"]
-        if cid not in nomes_antes:
-            linhas.append(f"- **Acrescentado:** `{cid}` — {nome} "
-                          f"(complexidade {i['complexidade'] or 'não se aplica'}, {i['quantidade']}×)")
-        else:
-            a = nomes_antes[cid]
-            # O JSON escrito pelo agente nem sempre traz todas as chaves —
-            # item de regra especial costuma vir sem `complexidade`.
-            ac, aq = a.get("complexidade"), a.get("quantidade", 1)
-            if ac != i["complexidade"] or aq != i["quantidade"]:
+    for chave, itens in depois_k.items():
+        cid, _rot = chave
+        antigos = antes_k.get(chave, [])
+        for k, i in enumerate(itens):
+            if k < len(antigos):
+                a = antigos[k]
+                # O JSON escrito pelo agente nem sempre traz todas as chaves —
+                # item de regra especial costuma vir sem `complexidade`.
+                ac, aq = a.get("complexidade"), a.get("quantidade", 1)
+                if ac != i["complexidade"] or aq != i["quantidade"]:
+                    linhas.append(
+                        f"- **Alterado:** `{cid}` — {descrever(i, cid)}: "
+                        f"{ac or '—'}/{aq}× → {i['complexidade'] or '—'}/{i['quantidade']}×"
+                    )
+            else:
                 linhas.append(
-                    f"- **Alterado:** `{cid}` — {nome}: "
-                    f"{ac or '—'}/{aq}× → {i['complexidade'] or '—'}/{i['quantidade']}×"
+                    f"- **Acrescentado:** `{cid}` — {descrever(i, cid)} "
+                    f"(complexidade {i['complexidade'] or 'não se aplica'}, {i['quantidade']}×)"
                 )
-    for cid in nomes_antes:
-        if cid not in nomes_depois:
-            linhas.append(f"- **Removido:** `{cid}` — {cat[cid]['nome']}")
+
+    # Rótulo mudado aparece como remoção + acréscimo pela chave composta; a
+    # comparação por id recupera a intenção e escreve uma linha só.
+    so_id_antes = {}
+    so_id_depois = {}
+    for (cid, rot), itens in antes_k.items():
+        so_id_antes.setdefault(cid, []).extend([rot] * len(itens))
+    for (cid, rot), itens in depois_k.items():
+        so_id_depois.setdefault(cid, []).extend([rot] * len(itens))
+    for cid, rots in so_id_depois.items():
+        velhos = sorted(set(so_id_antes.get(cid, [])) - set(rots))
+        novos = sorted(set(rots) - set(so_id_antes.get(cid, [])))
+        if velhos and novos and len(velhos) == len(novos):
+            nome = cat[cid]["nome"]
+            for v, n in zip(velhos, novos):
+                linhas.append(f"- **Rótulo:** `{cid}` — «{v or nome}» → «{n or nome}»")
+
+    for chave, itens in antes_k.items():
+        cid, _rot = chave
+        sobra = len(itens) - len(depois_k.get(chave, []))
+        # Só é remoção de verdade se o id sumiu ou encolheu no total.
+        if sobra > 0 and len(so_id_depois.get(cid, [])) < len(so_id_antes.get(cid, [])):
+            for _ in range(sobra):
+                linhas.append(f"- **Removido:** `{cid}` — {cat[cid]['nome']}")
 
     if not linhas:
         return
@@ -196,7 +240,9 @@ def editar_escopo(req, pid):
                 shutil.copy2(origem, cfg.SINGLETON_PROPOSTA / nome)
 
     executor.sincronizar_orcamento(linha["id"], linha["slug"])
-    modelo.derrubar_checkpoint(linha["id"], "o escopo foi editado à mão e o total mudou")
+    # Reabre em vez de só derrubar: editando por fora da UI, uma proposta
+    # `gerada` ficava com o checkpoint pendente e sem caminho de volta.
+    modelo.reabrir_para_gate(linha["id"], "o escopo foi editado à mão e o total mudou")
     db.evento(linha["id"], "escopo_editado", f"{len(antes)} → {len(depois)} itens cotados")
 
     atualizada = db.um("SELECT * FROM propostas WHERE id = ?", (linha["id"],))

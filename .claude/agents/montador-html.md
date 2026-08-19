@@ -64,3 +64,17 @@ Leia, nesta ordem:
 Escreva `proposta/proposta.html` e `proposta/05-montagem.md`. Ao terminar,
 responda ao orquestrador: número de páginas, seções usadas, resultado das duas
 auditorias e qualquer bloco que tenha ficado perto do limite de altura.
+
+## A tabela de módulos
+
+`td.lbl` recebe o `rotulo_exibido` da linha; `td.val` recebe o
+`valor_exibido_fmt` — **não** o `valor_fmt`. Os dois são iguais na maioria das
+propostas; quando houve fechamento comercial, só o `exibido` soma o total
+impresso, e uma tabela que não soma é pior do que não ter tabela.
+
+**Não concatene horas no `td.val`.** `26h · R$ 5.200,00` está errado; o certo é
+`R$ 5.200,00`. Vale para a linha de total, para a sub-nota do investimento e
+para os cartões `.stat`: nem total de horas, nem valor da hora técnica.
+
+O exemplar `templates/exemplo/implantacao-shopify.html` já está nesse formato —
+siga-o. A exceção é a seção de fee mensal, onde o pacote de horas é o produto.

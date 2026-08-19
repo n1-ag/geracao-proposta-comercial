@@ -152,7 +152,9 @@ function editorEscopo(impl, escopo, somenteLeitura) {
       .join('');
     return `<tr data-item="${k}" data-id="${esc(i.catalogo_id)}">
       <td>
-        <div>${esc(cotada.nome || i.catalogo_id)}</div>
+        <input class="ed-rotulo" type="text" value="${esc(i.rotulo || '')}"
+               placeholder="${esc(cotada.nome || i.catalogo_id)}"
+               title="o nome que o cliente lê nesta linha do PDF">
         <div class="dim pequeno mono">${esc(i.catalogo_id)}</div>
       </td>
       <td>${semComplexidade
@@ -171,7 +173,10 @@ function editorEscopo(impl, escopo, somenteLeitura) {
       <span class="dim pequeno">recalcula na hora, sem o agente</span>
     </div>
     <p class="pequeno dim mt0">
-      Mude complexidade, quantidade ou remova um item e recalcule. O
+      Mude o nome que o cliente lê, a complexidade, a quantidade, ou remova um
+      item — e recalcule. Dois itens do mesmo tipo precisam de nomes diferentes,
+      senão viram duas linhas iguais no PDF com preços diferentes. A contagem
+      («— 3 páginas») é acrescentada sozinha. O
       <code>precificar.py</code> refaz a conta — quem decide o valor continua sendo
       o script, o que muda aqui é a escolha dos itens. A edição fica registrada
       no escopo.
@@ -180,7 +185,7 @@ function editorEscopo(impl, escopo, somenteLeitura) {
     <div class="tabela-rolavel">
       <table class="lista" id="tab-editor">
         <thead><tr>
-          <th>Item</th><th>Complexidade</th><th>Qtd</th>
+          <th>Como aparece no PDF</th><th>Complexidade</th><th>Qtd</th>
           <th class="num">Horas</th><th class="num">Valor</th><th></th>
         </tr></thead>
         <tbody>${linhas || '<tr><td colspan="6" class="dim">nenhum item cotado</td></tr>'}</tbody>
@@ -541,6 +546,7 @@ function ligar(raiz, id) {
     const linhasAtuais = () => [...editor.querySelectorAll('#tab-editor tbody tr[data-id]')]
       .map((tr) => ({
         catalogo_id: tr.dataset.id,
+        rotulo: tr.querySelector('.ed-rotulo')?.value.trim() || '',
         complexidade: tr.querySelector('.ed-complexidade')?.value || null,
         quantidade: Number(tr.querySelector('.ed-qtd')?.value || 1),
       }));
@@ -553,6 +559,13 @@ function ligar(raiz, id) {
     });
     editor.addEventListener('change', () => {
       estadoEd.textContent = 'alterado — clique em Recalcular';
+    });
+    // `change` em campo de texto só dispara ao sair dele; sem isto, quem digita
+    // o rótulo e clica direto em Recalcular não vê que havia algo pendente.
+    editor.addEventListener('input', (e) => {
+      if (e.target.classList.contains('ed-rotulo')) {
+        estadoEd.textContent = 'alterado — clique em Recalcular';
+      }
     });
 
     editor.querySelector('#btn-add').addEventListener('click', () => {

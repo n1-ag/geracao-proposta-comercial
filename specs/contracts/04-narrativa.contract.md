@@ -26,6 +26,18 @@ limite não é sugestão: estourar provoca transbordo e o render recusa o PDF.
 - **evolução:** 5 frentes; título ≤ 48 caracteres, texto 200–330
 - **implantação:** `incluido` (6 itens ≤ 52 car.) + a tabela de módulos, cuja
   sub-nota por linha tem até 68 caracteres + `nota` de até 200
+- O rótulo de cada linha da tabela é o **`rotulo_exibido`** da linha do
+  orçamento, não o `nome` do catálogo. Ele já vem com a contagem quando o item
+  cobre um grupo ("Landing pages institucionais — 3 páginas"): copie como está.
+- **A tabela carrega valor, nunca esforço.** Nada de `26h · R$ 5.200,00`, nada
+  de "134h × R$ 200,00" na composição do investimento, nada de cartão com o
+  total de horas ou com o valor da hora técnica. O cliente compra entregas por
+  um preço; horas e taxa horária são a nossa conta, e juntas entregam a margem.
+  `auditar.py numeros` reprova a fase.
+  A exceção é o pacote de horas do fee mensal: ali a hora é o produto.
+- O valor de cada linha é o **`valor_exibido_fmt`**, nunca o `valor_fmt`. Os
+  dois são iguais na maioria das propostas; quando houve fechamento comercial,
+  só o `exibido` soma o total impresso.
 
 ### `## 03 CONDUCAO`
 - `intro`: até 240 caracteres

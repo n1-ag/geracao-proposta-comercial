@@ -32,6 +32,18 @@ Leia, nesta ordem:
    (ex.: `20–28`). Não escolha um número, não some, não multiplique.
 3. Escreva `proposta/02-escopo.md` com as 10 seções do contrato.
 4. Escreva `proposta/02-escopo.json` conforme o schema — só seleções.
+5. **Dê nome ao que está sendo vendido.** O `nome` do catálogo é fixo por
+   `catalogo_id`: se você cotar cinco páginas institucionais diferentes, o PDF
+   imprime cinco linhas iguais com preços diferentes e o cliente não sabe qual é
+   qual. Preencha `rotulo` sempre que o nome do catálogo não identificar o item:
+   quando o mesmo `catalogo_id` se repete, ou quando `quantidade > 1`.
+   - `rotulo` é a voz do cliente: "Páginas das verticais Syngular Trust e Mais".
+   - `observacao` continua sendo a nota de auditoria — cluster, lacuna, critério.
+     Ela **não** vai para o PDF; o `rotulo` vai.
+   - Quando `quantidade > 1`, enumere em `observacao` o que compõe a conta.
+   - **Não escreva a contagem no `rotulo`.** "2 páginas" é número, e o
+     `precificar.py` acrescenta sozinho a partir de `quantidade` e da unidade do
+     catálogo. Escrever à mão duplica e desalinha quando a quantidade muda.
 5. Numa proposta de **evolução**, calcule o pacote recomendado
    (`evolucao_solicitada.horas_mes`) a partir do volume de demandas recorrentes
    levantado, e **mostre o raciocínio** na seção de lacunas ou observações.

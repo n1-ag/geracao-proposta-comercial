@@ -54,6 +54,21 @@ Blocos repetíveis: `factbar-item` (2–4) · `stat` (3–4) · `bullet-lead` /
 Marcador condicional que não se aplica recebe **string vazia**, nunca o texto do
 marcador.
 
+## A tabela de módulos
+
+Rótulo da linha: `rotulo_exibido`. Valor: `valor_exibido_fmt`. Linha de total:
+`total_fmt`.
+
+**Nunca escreva esforço.** `26h · R$ 5.200,00` está errado — o certo é
+`R$ 5.200,00`. Vale também para a linha de total, para a sub-nota da composição
+do investimento ("134h × R$ 200,00") e para os cartões `.stat` do topo: nem
+total de horas, nem valor da hora técnica. Os dois juntos entregam a margem.
+
+A exceção é a seção de fee mensal, onde o pacote de horas é o que está sendo
+vendido — `plano-card` e as condições do modelo de evolução continuam como são.
+
+`auditar.py numeros` reprova a fase quando esforço vaza.
+
 ## Tokens de número
 
 `«orc:caminho.do.campo»` é resolvido por caminho de chave contra

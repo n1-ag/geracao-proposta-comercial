@@ -281,6 +281,67 @@ def horas_do_item(dados: Dados, item: dict, sel: dict, design_do_cliente: bool) 
     return mn, mx, h, {"regra": "catalogo", "complexidade": cx, "politica_faixa": politica}, None
 
 
+def ratear(partes: list, alvo: "D") -> list:
+    """Distribui `alvo` entre `partes`, na proporção de cada uma, fechando exato.
+
+    Quando o valor é fechado na negociação, as linhas calculadas não somam o
+    total: a Viveo calcula 22.000 e foi fechada em 36.000. Mostrar as linhas
+    originais ao lado do total fechado imprime uma tabela que não soma, e uma
+    tabela que não soma é pior do que não ter tabela.
+
+    Arredondar cada parte isoladamente também não fecha — sobra ou falta um
+    punhado de centavos. Por isso o resto vai por **maior resto**: cada parte
+    fica com os centavos truncados e os que sobrarem são entregues, um a um, a
+    quem tinha a maior fração perdida. A soma passa a bater no centavo.
+    """
+    soma = sum(partes)
+    if soma <= 0:
+        return [D(0) for _ in partes]
+
+    centavos_alvo = int((alvo * 100).to_integral_value(rounding=ROUND_HALF_UP))
+    exatos = [(pt * 100 * alvo / soma) for pt in partes]
+    piso = [int(e) for e in exatos]
+    sobra = centavos_alvo - sum(piso)
+
+    # Quem perdeu mais na truncagem recebe primeiro os centavos que faltam.
+    ordem = sorted(range(len(exatos)), key=lambda i: exatos[i] - piso[i], reverse=True)
+    for k in range(sobra):
+        piso[ordem[k % len(piso)]] += 1
+
+    return [D(c) / D(100) for c in piso]
+
+
+# Plural das unidades do catálogo. Dez palavras, escritas à mão: gerar plural em
+# português por regra dá "seçãos" e "integraçãos", e o rótulo vai para o cliente.
+PLURAIS = {
+    "página": "páginas", "template": "templates", "conjunto": "conjuntos",
+    "componente": "componentes", "fluxo": "fluxos", "projeto": "projetos",
+    "hotsite": "hotsites", "seção": "seções", "funcionalidade": "funcionalidades",
+    "integração": "integrações",
+}
+
+
+def rotulo_da_linha(item: dict, sel: dict) -> str:
+    """O que o cliente lê como nome da linha.
+
+    O `nome` do catálogo é fixo por `catalogo_id`, então uma proposta que cota
+    cinco páginas institucionais diferentes imprime cinco linhas idênticas com
+    preços diferentes — e quem lê não sabe qual é qual. `rotulo` é o nome desta
+    venda; o `nome` do catálogo é só o fallback.
+
+    A contagem é acrescentada aqui, não pelo agente: quantas páginas são é um
+    número, e número quem escreve é o script.
+    """
+    base = (sel.get("rotulo") or "").strip() or item["nome"]
+    qtd = int(sel.get("quantidade", 1))
+    if qtd > 1:
+        unidade = (item.get("unidade") or "").strip()
+        plural = PLURAIS.get(unidade, f"{unidade}s" if unidade else "")
+        if plural:
+            base = f"{base} — {qtd} {plural}"
+    return base
+
+
 def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
                            motivo_fechado: str = "") -> dict:
     """Precifica a implantação.
@@ -320,6 +381,8 @@ def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
                             "mensagem": f"'{item['nome']}' já faz parte do escopo padrão; cotado a zero."})
         linhas.append({
             "ordem": ordem, "catalogo_id": cid, "nome": item["nome"],
+            "rotulo": (sel.get("rotulo") or "").strip(),
+            "rotulo_exibido": rotulo_da_linha(item, sel),
             "categoria": item.get("categoria"), "unidade": item.get("unidade"),
             "quantidade": qtd, "exige_app": bool(item.get("exige_app")),
             **det,
@@ -355,6 +418,10 @@ def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
     embutido = D(plat["design_embutido"])
     abatimento = embutido if design_do_cliente else D(0)
     total = base + adicionais - abatimento
+    base_exibida = base
+    for l in linhas + fora:
+        l["valor_exibido"] = l["valor"]
+        l["valor_exibido_fmt"] = l["valor_fmt"]
 
     # Fechamento comercial: uma pessoa decidiu o preço final. O valor calculado
     # não é apagado — fica ao lado, para que a diferença seja sempre visível.
@@ -380,6 +447,24 @@ def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
                 + (f" Motivo: {motivo_fechado}" if motivo_fechado else "")
             ),
         })
+
+        # As linhas passam a exibir a parte que lhes cabe do valor fechado. O
+        # `valor_fmt` calculado continua no JSON como verdade interna — é o que
+        # a memória de cálculo e a auditoria usam —, mas não é o que vai ao PDF.
+        # O alvo é `total + abatimento`, não `total`: a etapa de design entra na
+        # tabela como linha própria e subtrai depois. Ratear direto no total
+        # faria a coluna fechar abaixo do valor negociado, pelo abatimento.
+        #
+        # E os itens fora do catálogo entram no rateio junto: deixá-los de fora
+        # os manteria no valor calculado enquanto o resto se move, e a soma da
+        # coluna erraria por exatamente o valor deles.
+        cotadas = linhas + fora
+        partes = [D(str(l["valor"])) for l in cotadas] + [base]
+        rateado = ratear(partes, total + abatimento)
+        for l, v in zip(cotadas, rateado):
+            l["valor_exibido"] = num(v)
+            l["valor_exibido_fmt"] = brl(v)
+        base_exibida = rateado[-1]
 
     # Prazo derivado das horas — ver o aviso REVISAR em condicoes-comerciais.toml
     pz = dados.condicoes["implantacao"]["prazo"]
@@ -417,6 +502,9 @@ def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
         "aplicavel": True,
         "plataforma": slug, "plataforma_nome": plat["nome"],
         "valor_base": num(base), "valor_base_fmt": brl(base),
+        # O que a tabela do PDF mostra na linha do valor base. Igual ao
+        # calculado, exceto quando houve fechamento comercial.
+        "valor_base_exibido": num(base_exibida), "valor_base_exibido_fmt": brl(base_exibida),
         "escopo_padrao_incluso": [dados.catalogo[i]["nome"] for i in imp["escopo_padrao"]
                                   if i in dados.catalogo],
         "valor_hora": num(hora), "valor_hora_fmt": brl(hora),

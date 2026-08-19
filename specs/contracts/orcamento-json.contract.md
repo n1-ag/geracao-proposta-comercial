@@ -24,13 +24,40 @@ fases 04 e 05 só podem usar os campos `_fmt`.**
 `condicoes{ parcelamento, entrada_pct, entrada_valor(_fmt), parcelas_restante,
 parcela_valor(_fmt), prazo_semanas_min, prazo_semanas_max, prazo_fmt, garantia }`
 
-Cada item de `linhas[]`: `ordem`, `catalogo_id`, `nome`, `categoria`, `unidade`,
-`quantidade`, `exige_app`, `regra`, `complexidade`, `politica_faixa`,
-`horas_min_total`, `horas_max_total`, `horas_total(_fmt)`, `valor(_fmt)`,
-`origem[]`, `no_catalogo`, `observacao`, `descricao_proposta`.
+Cada item de `linhas[]`: `ordem`, `catalogo_id`, `nome`, `rotulo`,
+`rotulo_exibido`, `categoria`, `unidade`, `quantidade`, `exige_app`, `regra`,
+`complexidade`, `politica_faixa`, `horas_min_total`, `horas_max_total`,
+`horas_total(_fmt)`, `valor(_fmt)`, `valor_exibido(_fmt)`, `origem[]`,
+`no_catalogo`, `observacao`, `descricao_proposta`.
 
-`horas_min_total` e `horas_max_total` existem para auditoria interna; **o cliente
-vê um número só** (`horas_total`), definido por `politica_faixa_horas`.
+### O que vai ao cliente e o que fica aqui
+
+| Campo | Papel |
+|---|---|
+| `nome` | o rótulo genérico do catálogo, fixo por `catalogo_id` |
+| `rotulo` | o nome desta venda, escrito na fase 02; vazio quando não precisa |
+| `rotulo_exibido` | **o que o PDF imprime** — `rotulo` ou `nome`, mais a contagem quando `quantidade > 1` |
+| `valor(_fmt)` | o valor calculado pelo escopo — verdade interna |
+| `valor_exibido(_fmt)` | **o que o PDF imprime** — igual ao calculado, exceto sob fechamento comercial |
+| `horas_*` | esforço. **Não entra no documento do cliente.** |
+
+`horas_min_total` e `horas_max_total` existem para auditoria interna. `horas_total`
+também: junto com `valor_hora`, ele entrega a margem, então nenhum dos dois
+aparece no PDF de implantação — `auditar.py numeros` reprova. Na evolução o
+pacote de horas é o produto e aparece normalmente.
+
+### `valor_exibido` sob fechamento comercial
+
+Quando uma pessoa fecha o preço na negociação, as linhas calculadas não somam o
+total: a Viveo calculou R$ 22.000 e foi fechada em R$ 36.000. Imprimir as linhas
+originais ao lado do total fechado dá uma tabela que não soma.
+
+`precificar.py` rateia o fechado entre as linhas e o valor base, na proporção de
+cada uma, distribuindo o resto por **maior resto** — a coluna fecha no centavo.
+`valor_base_exibido(_fmt)` é a contraparte do valor base.
+
+Fora do fechamento, `valor_exibido` é idêntico a `valor`. Ele é emitido **sempre**
+para que o redator e o montador usem um campo só e nunca precisem decidir qual.
 
 ## `evolucao`
 

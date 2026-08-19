@@ -132,6 +132,25 @@ def exigir_aprovado(linha: dict) -> None:
         )
 
 
+def reabrir_para_gate(proposta_id: int, motivo: str) -> dict | None:
+    """Derruba a aprovação e devolve a proposta ao gate.
+
+    `derrubar_checkpoint` sozinho deixava um estado sem saída: a proposta
+    continuava `gerada` com o checkpoint pendente, e daí `aprovar` recusava
+    ("não está aguardando aprovação") enquanto `executar` recusava
+    ("checkpoint pendente"). A tela mostrava o problema e nenhum botão que o
+    resolvesse.
+
+    A transição `gerada → aguardando_aprovacao` sempre foi legal em
+    `TRANSICOES`; faltava alguém chamá-la.
+    """
+    derrubar_checkpoint(proposta_id, motivo)
+    linha = db.um("SELECT * FROM propostas WHERE id = ?", (proposta_id,))
+    if linha and linha["status"] == GERADA:
+        return mudar_status(proposta_id, AGUARDANDO, motivo)
+    return linha
+
+
 def derrubar_checkpoint(proposta_id: int, motivo: str) -> None:
     """Rebaixa a aprovação. Chamado sempre que 02 ou 03 são refeitas.
 

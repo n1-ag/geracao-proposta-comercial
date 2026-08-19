@@ -1265,3 +1265,22 @@ body.pagina-login {
 .chat-entrada .btn { white-space: nowrap; }
 
 .chat-erro { color: var(--erro); font-size: 13px; margin: 10px 0 0; }
+
+/* Campo do rótulo no editor de escopo. Ocupa a coluna inteira: é o texto que o
+   cliente lê, e um campo estreito convida a abreviações que não cabem no PDF. */
+.ed-rotulo {
+  width: 100%;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--sup-4);
+  background: var(--sup-1);
+  color: var(--texto);
+  font: inherit;
+  font-size: 13px;
+}
+.ed-rotulo::placeholder { color: var(--texto-3); font-style: italic; }
+.ed-rotulo:focus {
+  outline: none;
+  border-color: var(--ciano-esc);
+  box-shadow: 0 0 0 3px rgba(60,203,218,.14);
+}

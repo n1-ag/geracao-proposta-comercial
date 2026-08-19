@@ -44,7 +44,7 @@ do catálogo; **não soma, não multiplica, não precifica.**
   "prazo_semanas": { "min": 6, "max": 7, "origem": ["E71"], "justificativa": "" },
   "itens": [
     { "catalogo_id": "int-erp", "complexidade": "media", "quantidade": 1,
-      "design_pela_n1": true, "origem": ["E12"], "observacao": "" }
+      "rotulo": "", "design_pela_n1": true, "origem": ["E12"], "observacao": "" }
   ],
   "itens_fora_catalogo": [
     { "nome": "…", "horas_estimadas": 32, "justificativa": "…", "origem": ["E31"] }
@@ -56,6 +56,40 @@ do catálogo; **não soma, não multiplica, não precifica.**
 
 **Não existe campo para horas nem para valor nos `itens`.** É por construção: o
 agente não pode errar uma conta que não tem permissão de escrever.
+
+### `rotulo` — o nome do que está sendo vendido
+
+O `nome` do catálogo é fixo por `catalogo_id`. Uma proposta que cota cinco
+páginas institucionais diferentes imprime cinco linhas idênticas —
+"Página institucional adicional" — com preços de R$ 1.200 a R$ 9.600, e quem lê
+não sabe qual é qual. Aconteceu, e o documento foi para o cliente assim.
+
+`rotulo` é o nome dessa venda, na voz do cliente. **Obrigatório** quando o nome
+do catálogo não identifica o que se está vendendo:
+
+- o mesmo `catalogo_id` aparece mais de uma vez no escopo;
+- o item cobre um grupo (`quantidade > 1`).
+
+```json
+{ "catalogo_id": "pagina-institucional-extra", "complexidade": "alta",
+  "quantidade": 2, "rotulo": "Páginas das verticais Syngular Trust e Mais",
+  "origem": ["E09","E10"],
+  "observacao": "Cluster 1 — estruturais. Ver lacuna 18." }
+```
+
+Repare na divisão: `observacao` é a nota de auditoria — cluster, lacuna, por que
+a complexidade é essa — e **não vai para o PDF**. `rotulo` vai. São públicos
+diferentes, por isso são campos diferentes.
+
+**Não escreva a quantidade dentro do `rotulo`.** "2 páginas" é número, e número
+quem escreve é o `precificar.py`, que compõe `rotulo_exibido` a partir de
+`rotulo` + `quantidade` + a unidade do catálogo. Escrever à mão duplica
+("Páginas X — 2 páginas — 2 páginas") e desalinha quando a quantidade muda no
+gate.
+
+Sem `rotulo`, vale o `nome` do catálogo — o comportamento de sempre.
+`auditar.py escopo` reprova `catalogo_id` repetido cujos rótulos não distingam
+uma linha da outra.
 
 - `complexidade` é obrigatória, exceto quando o item tem `no_escopo_padrao` ou
   `regra_especial` no catálogo.

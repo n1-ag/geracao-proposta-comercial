@@ -51,3 +51,17 @@ Leia, nesta ordem:
 Escreva **somente** `proposta/04-narrativa.md`. Ao terminar, responda ao
 orquestrador: quais seções foram escritas, quais tokens `«orc:…»` você usou, e
 qualquer conflito entre o conteúdo necessário e o limite de caracteres.
+
+## A tabela de módulos
+
+O rótulo de cada linha é o `rotulo_exibido` da linha do orçamento — não o `nome`
+do catálogo. Ele já vem com a contagem quando o item cobre um grupo
+("Landing pages institucionais — 3 páginas"): copie como está, não recomponha.
+
+**A tabela carrega valor, nunca esforço.** Nada de `26h · R$ 5.200,00`, nada de
+"134h × R$ 200,00" na composição do investimento, nada de cartão com total de
+horas ou com valor da hora técnica. O cliente compra entregas por um preço;
+horas e taxa horária são a nossa conta, e juntas entregam a margem. A exceção é
+o pacote de horas do fee mensal, onde a hora é o produto.
+
+`auditar.py numeros` reprova a fase quando esforço vaza para o HTML.

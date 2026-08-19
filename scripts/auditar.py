@@ -199,6 +199,25 @@ def cmd_escopo(args) -> int:
                 r.falha(f"item '{cid}' sem complexidade válida")
         r.passou()
 
+    # Linha repetida sem rótulo que a distinga. A Certifica foi para o cliente com
+    # cinco "Página institucional adicional" de R$ 1.200 a R$ 9.600, e nada no
+    # documento dizia qual era qual — o escopo sabia, o PDF não mostrava.
+    por_id: dict = {}
+    for i in esc.get("itens", []):
+        por_id.setdefault(i.get("catalogo_id"), []).append((i.get("rotulo") or "").strip())
+    for cid, rotulos in por_id.items():
+        if len(rotulos) < 2:
+            continue
+        if len(set(rotulos)) < len(rotulos) or "" in rotulos:
+            nome = dados.catalogo.get(cid, {}).get("nome", cid)
+            r.falha(
+                f"'{cid}' aparece {len(rotulos)}× e os rótulos não distinguem as linhas. "
+                f"No PDF viram {len(rotulos)} linhas iguais chamadas '{nome}' com preços "
+                f"diferentes. Dê um `rotulo` próprio a cada uma dizendo o que ela é."
+            )
+        else:
+            r.passou()
+
     for i in esc.get("itens_fora_catalogo", []):
         if not i.get("justificativa"):
             r.falha(f"item fora do catálogo '{i.get('nome')}' sem justificativa técnica")
@@ -226,6 +245,79 @@ def cmd_escopo(args) -> int:
 RE_DINHEIRO = re.compile(r"R\$\s*[\d][\d.\s]*(?:,\d{2})?")
 RE_HORAS = re.compile(r"\b\d+\s*(?:h\b|horas?\b|h/mês|h / mês)")
 RE_PCT = re.compile(r"\b\d+\s*%")
+RE_RELOGIO = re.compile(r"(?:às|as|até|após\s+as|depois\s+das|a\s+partir\s+das)\s*\d+\s*h\b",
+                        re.IGNORECASE)
+
+
+# O que é conta nossa e não vai para o documento do cliente. Esforço em horas e
+# valor da hora são a matéria-prima do preço: com os dois, quem lê reconstrói a
+# margem. O cliente compra entregas por um valor, não horas por uma taxa.
+#
+# Isto era convenção editorial — o montador copiava o formato do exemplar — e
+# por isso variava: Pekon e Viveo saíram sem uma hora sequer, Certifica com
+# treze linhas delas. Aqui vira regra.
+CAMPOS_INTERNOS = (
+    "valor_hora_fmt", "horas_total_fmt", "horas_adicionais_fmt",
+    "horas_min_total", "horas_max_total", "horas_adicionais_min",
+    "horas_adicionais_max",
+)
+
+
+def _subarvore(orc: dict, chave: str) -> dict:
+    return orc.get(chave) or {}
+
+
+def horas_permitidas(orc: dict) -> set:
+    """Horas que podem aparecer: só as dos pacotes de fee mensal.
+
+    Na evolução o pacote de horas é o produto — "28 horas por mês" é o que está
+    sendo vendido, e omiti-lo deixaria a oferta incompreensível. Na implantação
+    a hora é custo interno.
+    """
+    perm = set()
+
+    # Só as chaves que falam de horas. Varrer todo número da subárvore deixava
+    # `contrato_meses: 12` autorizar "12h" e `valor_hora: 210` autorizar "210h" —
+    # o conjunto ficava tão largo que a regra não pegava nada.
+    def e_de_horas(chave: str) -> bool:
+        return "horas" in chave or chave in ("pacote", "pacote_fmt")
+
+    def anda(n):
+        if isinstance(n, dict):
+            for k, v in n.items():
+                # Texto na subárvore de evolução já é rótulo de cliente
+                # (`pacote_horas_fmt`, `faixa_rotulo`): o que estiver escrito
+                # ali pode aparecer. Número solto, só de chave que fala de hora.
+                if isinstance(v, str):
+                    for m in RE_HORAS.finditer(v):
+                        perm.add(m.group().strip())
+                elif e_de_horas(k) and isinstance(v, (int, float)) and not isinstance(v, bool):
+                    perm.add(f"{int(v)}h"); perm.add(f"{int(v)} h"); perm.add(f"{int(v)} horas")
+                anda(v)
+        elif isinstance(n, list):
+            for v in n:
+                anda(v)
+
+    anda(_subarvore(orc, "evolucao"))
+    return {re.sub(r"\s+", " ", x).strip() for x in perm}
+
+
+def valores_internos(orc: dict) -> set:
+    """Os textos formatados que o HTML não pode conter."""
+    achados = set()
+
+    def anda(n):
+        if isinstance(n, dict):
+            for k, v in n.items():
+                if k in CAMPOS_INTERNOS and v not in (None, "", 0):
+                    achados.add(f"{int(v)}h" if isinstance(v, (int, float)) else str(v).strip())
+                anda(v)
+        elif isinstance(n, list):
+            for v in n:
+                anda(v)
+
+    anda(_subarvore(orc, "implantacao"))
+    return achados
 
 
 def valores_permitidos(orc: dict) -> set:
@@ -271,6 +363,33 @@ def cmd_numeros(args) -> int:
                 r.falha(f"{rotulo} no HTML que não veio do orçamento: {achado!r}")
             else:
                 r.passou()
+
+    # Bater com o orçamento não basta: há número que confere e mesmo assim não
+    # deveria estar num documento que vai para o cliente.
+    horas_ok = horas_permitidas(orc)
+    # "publicação após as 16h" é hora do relógio, não esforço. Sai da varredura
+    # antes da conta, senão a política de publicação reprova a proposta.
+    sem_relogio = RE_RELOGIO.sub(" ", texto)
+    vazadas = sorted({re.sub(r"\s+", " ", m.group()).strip()
+                      for m in RE_HORAS.finditer(sem_relogio)} - horas_ok)
+    if vazadas:
+        r.falha(
+            "esforço em horas no HTML: " + ", ".join(vazadas[:8])
+            + ". O cliente vê o valor de cada módulo, não as horas que o compõem "
+              "(só o pacote de horas do fee mensal pode aparecer)."
+        )
+    else:
+        r.passou()
+
+    internos = sorted(v for v in valores_internos(orc) if v and v in texto)
+    if internos:
+        r.falha(
+            "dado interno no HTML: " + ", ".join(internos[:8])
+            + ". São campos de cálculo nosso — valor da hora e esforço — e não "
+              "entram no documento."
+        )
+    else:
+        r.passou()
 
     for marcador in re.findall(r"\{\{[A-Z_0-9]+\}\}|«[^»]+»", html):
         r.falha(f"marcador não resolvido no HTML final: {marcador}")
