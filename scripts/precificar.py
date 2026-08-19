@@ -29,7 +29,7 @@ import re
 import sys
 import tomllib
 from datetime import date, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_DOWN, ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 VERSAO = "1.0.0"
@@ -281,7 +281,13 @@ def horas_do_item(dados: Dados, item: dict, sel: dict, design_do_cliente: bool) 
     return mn, mx, h, {"regra": "catalogo", "complexidade": cx, "politica_faixa": politica}, None
 
 
-def ratear(partes: list, alvo: "D") -> list:
+# Degrau do rateio. Preço de módulo com centavo — "R$ 3.260,75" — parece erro de
+# planilha, não proposta comercial: quem lê desconfia do número antes de olhar o
+# escopo. Em degraus de dez, toda linha termina em zero.
+PASSO_RATEIO = D(10)
+
+
+def ratear(partes: list, alvo: "D", passo: "D" = PASSO_RATEIO, absorve: int = -1) -> list:
     """Distribui `alvo` entre `partes`, na proporção de cada uma, fechando exato.
 
     Quando o valor é fechado na negociação, as linhas calculadas não somam o
@@ -289,26 +295,49 @@ def ratear(partes: list, alvo: "D") -> list:
     originais ao lado do total fechado imprime uma tabela que não soma, e uma
     tabela que não soma é pior do que não ter tabela.
 
-    Arredondar cada parte isoladamente também não fecha — sobra ou falta um
-    punhado de centavos. Por isso o resto vai por **maior resto**: cada parte
-    fica com os centavos truncados e os que sobrarem são entregues, um a um, a
-    quem tinha a maior fração perdida. A soma passa a bater no centavo.
+    A conta é feita em **degraus de `passo` reais**, não em centavos. Ratear no
+    centavo fecha a soma mas produz "R$ 3.260,75" por módulo — número que não se
+    escreve numa proposta. Rateando em dezenas, cada linha termina em zero.
+
+    Arredondar cada parte isoladamente não fecharia a coluna, então o resto vai
+    por **maior resto**: cada parte fica com os degraus truncados e os que
+    sobrarem são entregues, um a um, a quem perdeu a maior fração. O que não
+    couber num degrau inteiro — se o total negociado não for múltiplo do passo —
+    vai todo para a linha `absorve`, que por padrão é a última: o valor base.
+    É a única que pode carregar um número quebrado sem parecer erro, porque
+    ninguém a compara com uma tabela de preços.
     """
     soma = sum(partes)
     if soma <= 0:
         return [D(0) for _ in partes]
 
-    centavos_alvo = int((alvo * 100).to_integral_value(rounding=ROUND_HALF_UP))
-    exatos = [(pt * 100 * alvo / soma) for pt in partes]
+    degraus_alvo = int((alvo / passo).to_integral_value(rounding=ROUND_DOWN))
+    resto = alvo - D(degraus_alvo) * passo
+
+    exatos = [(pt * degraus_alvo / soma) for pt in partes]
     piso = [int(e) for e in exatos]
-    sobra = centavos_alvo - sum(piso)
 
-    # Quem perdeu mais na truncagem recebe primeiro os centavos que faltam.
+    # Módulo que zeraria no arredondamento fica com um degrau: linha de R$ 0,00
+    # numa proposta é pior do que a imprecisão de dez reais que ela evita.
+    for i, pt in enumerate(partes):
+        if pt > 0 and piso[i] == 0 and sum(piso) < degraus_alvo:
+            piso[i] = 1
+
+    falta = degraus_alvo - sum(piso)
     ordem = sorted(range(len(exatos)), key=lambda i: exatos[i] - piso[i], reverse=True)
-    for k in range(sobra):
+    for k in range(max(falta, 0)):
         piso[ordem[k % len(piso)]] += 1
+    for k in range(max(-falta, 0)):                 # passou: devolve de quem tem mais
+        maiores = sorted(range(len(piso)), key=lambda i: piso[i], reverse=True)
+        for i in maiores:
+            if piso[i] > 1:
+                piso[i] -= 1
+                break
 
-    return [D(c) / D(100) for c in piso]
+    valores = [D(d) * passo for d in piso]
+    if resto:
+        valores[absorve] += resto
+    return valores
 
 
 # Plural das unidades do catálogo. Dez palavras, escritas à mão: gerar plural em

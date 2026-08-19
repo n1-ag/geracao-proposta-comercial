@@ -53,7 +53,14 @@ total: a Viveo calculou R$ 22.000 e foi fechada em R$ 36.000. Imprimir as linhas
 originais ao lado do total fechado dá uma tabela que não soma.
 
 `precificar.py` rateia o fechado entre as linhas e o valor base, na proporção de
-cada uma, distribuindo o resto por **maior resto** — a coluna fecha no centavo.
+cada uma, **em degraus de R$ 10** e com o resto por maior resto: a coluna fecha
+exata e toda linha termina em zero. Ratear no centavo também fechava, mas
+produzia "R$ 3.260,75" por módulo — número que parece erro de planilha e faz
+quem lê desconfiar antes de olhar o escopo.
+
+O que não couber num degrau inteiro — só quando o total negociado não é múltiplo
+de dez — vai para a linha do valor base, a única que pode carregar um número
+quebrado sem ser comparada a uma tabela de preços.
 `valor_base_exibido(_fmt)` é a contraparte do valor base.
 
 Fora do fechamento, `valor_exibido` é idêntico a `valor`. Ele é emitido **sempre**
