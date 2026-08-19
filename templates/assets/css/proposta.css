@@ -206,17 +206,28 @@ strong { font-weight: 600; color: var(--navy); }
   font-size: 10pt; line-height: 17pt; color: var(--on-navy);
 }
 
+/* Ancorada pela base, não pelo topo (841,89 − 731,71 − 64,32 = 45,86). O nome
+   do cliente é a única variável da capa: "Ateliê Verde" cabe em uma linha,
+   "Viveo - Mafra Especialidades" precisa de duas. Fixando o topo, o cartão
+   cresceria para baixo e encostaria na borda da página; fixando a base, ele
+   cresce para cima, onde há espaço vazio, e a distância até o pé da capa fica
+   igual em toda proposta.                                                   */
 .factbar {
-  position: absolute; top: 731.71pt; left: var(--pad-cover); right: var(--pad-cover);
-  display: flex; gap: 14.16pt;
+  position: absolute; bottom: 45.86pt; left: var(--pad-cover); right: var(--pad-cover);
+  display: flex; align-items: stretch; gap: 14.16pt;
 }
+/* `min-height` e não `height`: com altura travada em 64,32pt a segunda linha do
+   nome vazava para fora da caixa — o texto ficava por cima do fundo da capa,
+   abaixo do cartão. Com mínimo, uma linha continua desenhando exatamente como
+   antes (o padding de base repõe a folga que a altura fixa dava) e duas linhas
+   fazem os três cartões crescerem juntos, pelo `stretch`.                    */
 .factbar .fact {
   flex: 1;
-  height: 64.32pt;
+  min-height: 64.32pt;
   box-sizing: border-box;
   background: var(--navy-mid);
   border-radius: 5pt;
-  padding: 15.1pt 14.2pt 0;
+  padding: 15.1pt 14.2pt 14.86pt;
 }
 .fact-label {
   display: block;
@@ -230,14 +241,19 @@ strong { font-weight: 600; color: var(--navy); }
 
 /* ---------- Cartões numéricos (.stats) ----------------------------------- */
 .stats { display: flex; gap: 11.33pt; margin: 0 0 31.26pt; }
+/* Mesmo defeito do `.fact`, ainda não visto em proposta gerada: a altura fixa
+   comporta rótulo de até duas linhas, e a terceira vazaria. O padding de base
+   repõe a folga da altura fixa, então cartão de uma ou duas linhas continua
+   idêntico ao que era.                                                       */
+.stats { align-items: stretch; }
 .stat {
   flex: 1;
-  height: 72.54pt;
+  min-height: 72.54pt;
   box-sizing: border-box;
   background: var(--tint);
   border-top: 2.4pt solid var(--cyan);
   border-radius: 6pt;
-  padding: 19.7pt 8pt 0;
+  padding: 19.7pt 8pt 7.56pt;
   text-align: center;
 }
 .stat-num   { display: block; font-size: 17pt; line-height: 1.4; font-weight: 700; color: var(--navy); }
