@@ -78,3 +78,12 @@ para os cartões `.stat`: nem total de horas, nem valor da hora técnica.
 
 O exemplar `templates/exemplo/implantacao-shopify.html` já está nesse formato —
 siga-o. A exceção é a seção de fee mensal, onde o pacote de horas é o produto.
+
+O **valor da hora técnica não aparece em proposta nenhuma**, nem na de fee
+mensal: com o pacote impresso ("30 horas · R$ 6.000,00") a taxa é uma divisão, e
+declará-la só chama atenção para a conta em vez da entrega.
+
+A **hora excedente** é outra coisa e continua na proposta: é cláusula, o cliente
+precisa saber quanto paga se estourar o pacote, e escondê-la seria pior do que
+mostrá-la.
+

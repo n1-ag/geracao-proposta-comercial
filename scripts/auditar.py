@@ -262,6 +262,12 @@ CAMPOS_INTERNOS = (
     "horas_adicionais_max",
 )
 
+# `valor_hora_fmt` também não aparece na proposta de fee mensal: com o pacote
+# ("30 horas · R$ 6.000,00") a taxa é uma divisão, e imprimi-la só chama atenção
+# para a conta. `hora_excedente_fmt` é outra coisa — é cláusula: o cliente
+# precisa saber quanto paga se estourar o pacote, e escondê-la seria pior.
+CAMPOS_INTERNOS_EVOLUCAO = ("valor_hora_fmt",)
+
 
 def _subarvore(orc: dict, chave: str) -> dict:
     return orc.get(chave) or {}
@@ -317,6 +323,12 @@ def valores_internos(orc: dict) -> set:
                 anda(v)
 
     anda(_subarvore(orc, "implantacao"))
+
+    evo = _subarvore(orc, "evolucao")
+    for k in CAMPOS_INTERNOS_EVOLUCAO:
+        v = evo.get(k)
+        if v:
+            achados.add(str(v).strip())
     return achados
 
 
@@ -373,18 +385,27 @@ def cmd_numeros(args) -> int:
     vazadas = sorted({re.sub(r"\s+", " ", m.group()).strip()
                       for m in RE_HORAS.finditer(sem_relogio)} - horas_ok)
     if vazadas:
+        resto = len(vazadas) - 8
         r.falha(
             "esforço em horas no HTML: " + ", ".join(vazadas[:8])
+            + (f" (e mais {resto})" if resto > 0 else "")
             + ". O cliente vê o valor de cada módulo, não as horas que o compõem "
               "(só o pacote de horas do fee mensal pode aparecer)."
         )
     else:
         r.passou()
 
-    internos = sorted(v for v in valores_internos(orc) if v and v in texto)
+    internos = [v for v in valores_internos(orc) if v and v in texto]
     if internos:
+        # Dinheiro primeiro: a taxa horária é o achado mais grave e, em ordem
+        # alfabética, ficava atrás de uma fila de "10h, 18h, 2h…" e sumia no
+        # corte da mensagem — quem lesse concluiria que ela não foi pega.
+        ordenados = sorted(internos, key=lambda v: (not v.startswith("R$"), v))
+        mostra = ordenados[:8]
+        resto = len(ordenados) - len(mostra)
         r.falha(
-            "dado interno no HTML: " + ", ".join(internos[:8])
+            "dado interno no HTML: " + ", ".join(mostra)
+            + (f" (e mais {resto})" if resto else "")
             + ". São campos de cálculo nosso — valor da hora e esforço — e não "
               "entram no documento."
         )

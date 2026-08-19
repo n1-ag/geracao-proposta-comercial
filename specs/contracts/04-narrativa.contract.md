@@ -35,6 +35,15 @@ limite não é sugestão: estourar provoca transbordo e o render recusa o PDF.
   um preço; horas e taxa horária são a nossa conta, e juntas entregam a margem.
   `auditar.py numeros` reprova a fase.
   A exceção é o pacote de horas do fee mensal: ali a hora é o produto.
+
+O **valor da hora técnica não aparece em proposta nenhuma**, nem na de fee
+mensal: com o pacote impresso ("30 horas · R$ 6.000,00") a taxa é uma divisão, e
+declará-la só chama atenção para a conta em vez da entrega.
+
+A **hora excedente** é outra coisa e continua na proposta: é cláusula, o cliente
+precisa saber quanto paga se estourar o pacote, e escondê-la seria pior do que
+mostrá-la.
+
 - O valor de cada linha é o **`valor_exibido_fmt`**, nunca o `valor_fmt`. Os
   dois são iguais na maioria das propostas; quando houve fechamento comercial,
   só o `exibido` soma o total impresso.
