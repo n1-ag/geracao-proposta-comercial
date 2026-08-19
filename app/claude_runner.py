@@ -92,7 +92,8 @@ Regras que continuam valendo:
 - Item cotado precisa de `origem` não vazia e, quando o catálogo exigir,
   complexidade `baixa`, `media` ou `alta`.
 - Não cote item que esteja no escopo padrão: ele já vem no valor base.
-- Não escreva `horas`, `incluso_no_padrao` nem `valor_base_override` no escopo:
+- Não escreva `horas`, `valor_fixo`, `incluso_no_padrao` nem
+  `valor_base_override` no escopo:
   são campos que o app grava quando uma pessoa decide, e sobrescrevê-los apaga
   uma decisão comercial. Item que já os tenha, deixe como está.
 - Não invoque subagente. Faça você mesmo, direto nos arquivos.

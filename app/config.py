@@ -49,12 +49,19 @@ VERSAO_APP = "0.1.0"
 # Motor
 # -----------------------------------------------------------------------------
 
-# Modelo por fase. A 02 é onde errar custa caro (mapeia escopo, e escopo vira
-# preço), então ela leva o modelo mais forte. As demais são mais mecânicas.
+# Modelo por fase. Todas em sonnet.
+#
+# A 02 e a 04 rodavam em opus e respondiam por 59% do gasto — US$ 94,76 de
+# US$ 161,87 medidos em 61 execuções, com a 04 em US$ 4,19 de média e pico de
+# 7,94, à beira do disjuntor de 8,00.
+#
+# O mapa continua existindo por fase justamente para isto: se a qualidade cair,
+# subir a 02 de volta para opus é trocar uma palavra. Os sintomas a vigiar são
+# item mal classificado no gate (fase 02) e narrativa genérica (fase 04).
 MODELOS = {
     "01": "sonnet",
-    "02": "opus",
-    "04": "opus",
+    "02": "sonnet",
+    "04": "sonnet",
     "05": "sonnet",
     "06": "sonnet",
 }

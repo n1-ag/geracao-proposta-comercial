@@ -1320,3 +1320,69 @@ body.pagina-login {
   .op-seta { display: none; }
   .op-acao { padding-left: 24px; }
 }
+
+/* Campo do valor no editor de escopo. Alinhado à direita como o número que
+   substitui — um campo de dinheiro alinhado à esquerda quebra a coluna. */
+.ed-valor {
+  width: 100%;
+  max-width: 132px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--sup-4);
+  background: var(--sup-1);
+  color: var(--texto);
+  font: inherit;
+  font-size: 13px;
+  text-align: right;
+}
+.ed-valor::placeholder { color: var(--texto-3); font-style: normal; }
+.ed-valor:focus {
+  outline: none;
+  border-color: var(--ciano-esc);
+  box-shadow: 0 0 0 3px rgba(60,203,218,.14);
+}
+
+/* -------------------------------------------- catalogar item do escopo ---- */
+
+.btn-catalogar { margin-left: 8px; vertical-align: middle; }
+
+.cat-linha > td { background: rgba(60,203,218,.045); }
+
+.cat-form { padding: 14px 6px 6px; max-width: 720px; }
+.cat-form .campo { margin-bottom: 10px; }
+.cat-form input[type="text"],
+.cat-form select,
+.cat-form textarea {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--sup-4);
+  background: var(--sup-1);
+  color: var(--texto);
+  font: inherit;
+  font-size: 13px;
+}
+.cat-form textarea { resize: vertical; line-height: 1.55; }
+.cat-form .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.cat-faixas { display: flex; gap: 16px; flex-wrap: wrap; margin: 4px 0 12px; }
+.cat-faixa { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.cat-faixa > span:first-child {
+  color: var(--texto-3);
+  min-width: 42px;
+  font-family: var(--f-display);
+  font-size: 10.5px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.cat-faixa input {
+  width: 62px;
+  padding: 5px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--sup-4);
+  background: var(--sup-1);
+  color: var(--texto);
+  font: inherit;
+  font-size: 13px;
+  text-align: center;
+}

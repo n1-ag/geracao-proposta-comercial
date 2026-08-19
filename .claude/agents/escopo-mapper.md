@@ -74,7 +74,8 @@ pendente, o que mudou no mapeamento e por quê; se não foi aplicado, o motivo.
 ## Regras
 - **Proibido escrever `R$`** em qualquer lugar. `auditar.py escopo` reprova.
 - **Proibido somar horas.** O total é do script.
-- **Proibido escrever `horas`, `incluso_no_padrao` ou `valor_base_override`.**
+- **Proibido escrever `horas`, `valor_fixo`, `incluso_no_padrao` ou
+  `valor_base_override`.**
   São campos de decisão humana, gravados pelo app quando o comercial ajusta no
   gate. Pedido de preço ou de esforço não chega mais até você — o app resolve
   antes, com o número que a pessoa escreveu e conferiu.

@@ -426,7 +426,35 @@ def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
         qtd = int(sel.get("quantidade", 1))
         mn, mx, hu, det, alerta = horas_do_item(dados, item, sel, design_do_cliente)
         horas = hu * qtd
-        valor = D(horas) * hora
+        calculado = D(horas) * hora
+
+        # Uma pessoa digitou o valor desta linha. As horas continuam sendo
+        # calculadas — viram referência interna, e o `valor_calculado` fica ao
+        # lado no JSON —, mas quem manda no preço é a decisão.
+        #
+        # Isso só é aceitável porque hora não aparece mais no PDF: imprimir
+        # "18h · R$ 3.500,00" seria uma conta errada mostrada ao cliente.
+        fixado = sel.get("valor_fixo") is not None
+        if fixado:
+            try:
+                valor = ler_valor(sel["valor_fixo"])
+            except ValueError as e:
+                raise SystemExit(f"erro: item '{cid}' com `valor_fixo` inválido: {e}") from None
+            if valor < 0:
+                raise SystemExit(f"erro: item '{cid}' com `valor_fixo` negativo")
+        else:
+            valor = calculado
+        if fixado:
+            dif = valor - calculado
+            alertas.append({
+                "codigo": "VALOR_DE_ITEM_FIXADO", "severidade": "alta", "item": cid,
+                "mensagem": (
+                    f"'{item['nome']}' está com {brl(valor)} definido à mão. O cálculo "
+                    f"por horas daria {brl(calculado)} "
+                    f"({'a mais' if dif > 0 else 'a menos'} {brl(abs(dif))})."
+                ),
+            })
+
         if alerta == "HORAS_FIXADAS_MANUALMENTE":
             alertas.append({
                 "codigo": alerta, "severidade": "alta", "item": cid,
@@ -456,6 +484,8 @@ def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
             "horas_min_total": mn * qtd, "horas_max_total": mx * qtd, "horas_total": horas,
             "horas_total_fmt": f"{horas}h",
             "valor": num(valor), "valor_fmt": brl(valor),
+            "valor_calculado": num(calculado), "valor_calculado_fmt": brl(calculado),
+            "valor_fixado": fixado,
             "origem": sel.get("origem", []), "no_catalogo": True,
             "observacao": sel.get("observacao", ""),
             "descricao_proposta": item.get("descricao_proposta", ""),
@@ -542,9 +572,28 @@ def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
         # os manteria no valor calculado enquanto o resto se move, e a soma da
         # coluna erraria por exatamente o valor deles.
         cotadas = linhas + fora
-        partes = [D(str(l["valor"])) for l in cotadas] + [base]
-        rateado = ratear(partes, total + abatimento)
-        for l, v in zip(cotadas, rateado):
+
+        # Linha com valor fixado sai do rateio. Ratear tudo engoliria justamente
+        # a decisão que alguém tomou linha a linha — o número digitado voltaria
+        # diferente do que foi digitado, que é o oposto de fixar um valor.
+        travadas = [l for l in cotadas if l.get("valor_fixado")]
+        moveis = [l for l in cotadas if not l.get("valor_fixado")]
+        soma_travada = sum(D(str(l["valor"])) for l in travadas)
+        sobra = total + abatimento - soma_travada
+
+        if sobra < 0:
+            raise SystemExit(
+                f"erro: os valores fixados à mão somam {brl(soma_travada)} e já passam "
+                f"do total fechado de {brl(total)}. Solte alguma linha ou suba o total."
+            )
+
+        for l in travadas:
+            l["valor_exibido"] = l["valor"]
+            l["valor_exibido_fmt"] = l["valor_fmt"]
+
+        partes = [D(str(l["valor"])) for l in moveis] + [base]
+        rateado = ratear(partes, sobra)
+        for l, v in zip(moveis, rateado):
             l["valor_exibido"] = num(v)
             l["valor_exibido_fmt"] = brl(v)
         base_exibida = rateado[-1]

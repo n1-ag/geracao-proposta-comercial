@@ -429,6 +429,7 @@ import api_auth  # noqa: E402,F401
 import api_propostas  # noqa: E402,F401
 import api_execucao  # noqa: E402,F401
 import api_ajuste  # noqa: E402,F401
+import api_catalogo  # noqa: E402,F401
 import api_chat  # noqa: E402,F401
 import api_escopo  # noqa: E402,F401
 import api_artefatos  # noqa: E402,F401

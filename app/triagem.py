@@ -49,7 +49,7 @@ Cada operação tem `tipo`, `trecho` (o pedaço literal do texto que a originou)
 os campos do seu tipo:
 
 - `valor_total`      — o total da proposta. `{"valor": 28000}`
-- `valor_item`       — quanto vale uma linha. `{"alvo": 0, "valor": 6000}`
+- `valor_item`       — quanto a linha passa a valer, exato. `{"alvo": 0, "valor": 6000}`
 - `horas_item`       — esforço de uma linha. `{"alvo": 0, "horas": 16}`
 - `item_incluso`     — passa a valer sem custo. `{"alvo": 0}` ou `{"catalogo_id":"..."}` se ainda não estiver cotado
 - `remover_item`     — tira do escopo. `{"alvo": 0}`
@@ -296,20 +296,13 @@ def validar(brutas: list, escopo: dict, cat: dict | None = None) -> list:
                 continue
             op["valor"] = valor
 
-            # Preço de módulo vira hora aqui, com a conta feita em Python e a
-            # diferença declarada: pedir 6.500 numa hora de 200 dá 32h, que são
-            # 6.400 — melhor o vendedor ver isso antes de aplicar do que
-            # descobrir no PDF.
+            # O valor pedido é o valor que sai. Antes isto virava hora — 6.500
+            # numa hora de 200 dava 32h, ou seja 6.400 —, e o número impresso
+            # não era o número pedido. Agora a linha carrega o valor decidido, e
+            # as horas ficam como referência interna.
             if op["tipo"] == "valor_item":
-                qtd = _qtd_da_linha(itens, op.get("alvo"))
-                horas = round(valor / hora / max(qtd, 1))
-                if horas < 1:
-                    saida.append(recusa(
-                        f"{_brl(valor)} dá menos de uma hora a {_brl(hora)}/h"))
-                    continue
-                op["horas"] = horas
-                op["quantidade"] = qtd
-                op["valor_efetivo"] = horas * hora * qtd
+                op["quantidade"] = _qtd_da_linha(itens, op.get("alvo"))
+                op["valor_efetivo"] = valor
 
         if op["tipo"] == "horas_item":
             try:

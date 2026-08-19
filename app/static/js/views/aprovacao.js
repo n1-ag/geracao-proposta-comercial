@@ -28,12 +28,14 @@ export async function montar({ conteudo, acoes, titulo, params }) {
       aprovação. <a href="#/proposta/${id}">Voltar ao detalhe</a>.
     </div>` + corpo(dados, { somenteLeitura: true });
     ligarChat(conteudo, id);
+    ligarCatalogo(conteudo, id);
     return;
   }
 
   conteudo.innerHTML = corpo(dados, { somenteLeitura: false });
   ligar(conteudo, id);
   ligarChat(conteudo, id);
+  ligarCatalogo(conteudo, id);
 }
 
 // ------------------------------------------------------------------- markup
@@ -136,6 +138,10 @@ function heroi(impl, evol, totais, mensal) {
   </div>`;
 }
 
+function brl(v) {
+  return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
 function pills(origens) {
   return (origens || [])
     .map((o) => `<span class="pill-evidencia" data-ev="${esc(o)}">${esc(o)}</span>`)
@@ -162,7 +168,12 @@ function editorEscopo(impl, escopo, somenteLeitura) {
         : `<select class="ed-complexidade">${opcoes}</select>`}</td>
       <td><input class="ed-qtd" type="number" min="1" value="${i.quantidade || 1}"></td>
       <td class="num dim">${esc(cotada.horas_total_fmt || '—')}</td>
-      <td class="num">${esc(cotada.valor_fmt || '—')}</td>
+      <td class="num">
+        <input class="ed-valor" type="text" inputmode="decimal"
+               value="${i.valor_fixo != null ? esc(brl(i.valor_fixo)) : ''}"
+               placeholder="${esc(cotada.valor_fmt || '—')}"
+               title="digite para fixar o valor desta linha; vazio volta ao cálculo por horas">
+      </td>
       <td><button class="btn pequeno perigo ed-remover" title="remover item">×</button></td>
     </tr>`;
   }).join('');
@@ -173,8 +184,11 @@ function editorEscopo(impl, escopo, somenteLeitura) {
       <span class="dim pequeno">recalcula na hora, sem o agente</span>
     </div>
     <p class="pequeno dim mt0">
-      Mude o nome que o cliente lê, a complexidade, a quantidade, ou remova um
-      item — e recalcule. Dois itens do mesmo tipo precisam de nomes diferentes,
+      Mude o nome que o cliente lê, a complexidade, a quantidade, <strong>o
+      valor</strong>, ou remova um item — e recalcule. Valor digitado é o valor
+      que sai: ele não é arredondado para hora fechada, e nem o rateio de um
+      total negociado mexe nele. Deixe em branco para a linha voltar a sair do
+      cálculo por horas. Dois itens do mesmo tipo precisam de nomes diferentes,
       senão viram duas linhas iguais no PDF com preços diferentes. A contagem
       («— 3 páginas») é acrescentada sozinha. O
       <code>precificar.py</code> refaz a conta — quem decide o valor continua sendo
@@ -230,6 +244,8 @@ function tabelaEscopo(impl, escopo) {
     <tr>
       <td>
         ${esc(l.nome)} <span class="badge aguardando">fora do catálogo</span>
+        <button class="btn pequeno btn-catalogar" data-nome="${esc(l.nome)}"
+                title="incorporar este item ao catálogo de módulos">Catalogar</button>
         <div class="pequeno">${pills(l.origem || origemPorNome[l.nome])}</div>
         ${l.justificativa ? `<details class="pequeno dim" style="margin-top:4px">
           <summary>por que não usar item existente</summary>${esc(l.justificativa)}</details>` : ''}
@@ -548,6 +564,7 @@ function ligar(raiz, id) {
       .map((tr) => ({
         catalogo_id: tr.dataset.id,
         rotulo: tr.querySelector('.ed-rotulo')?.value.trim() || '',
+        valor_fixo: tr.querySelector('.ed-valor')?.value.trim() || null,
         complexidade: tr.querySelector('.ed-complexidade')?.value || null,
         quantidade: Number(tr.querySelector('.ed-qtd')?.value || 1),
       }));
@@ -564,7 +581,8 @@ function ligar(raiz, id) {
     // `change` em campo de texto só dispara ao sair dele; sem isto, quem digita
     // o rótulo e clica direto em Recalcular não vê que havia algo pendente.
     editor.addEventListener('input', (e) => {
-      if (e.target.classList.contains('ed-rotulo')) {
+      if (e.target.classList.contains('ed-rotulo')
+          || e.target.classList.contains('ed-valor')) {
         estadoEd.textContent = 'alterado — clique em Recalcular';
       }
     });
@@ -880,5 +898,113 @@ function ligarChat(raiz, id) {
     }
     if (d.estado === 'pronto') { rascunho = null; trocarEstado(false); }
     fim();
+  });
+}
+
+// ------------------------------------------------------- catalogar item ----
+
+// Item cotado fora do catálogo apareceu em todas as propostas geradas até hoje,
+// e nenhum foi incorporado: o caminho era um comando de terminal. Aqui o Sonnet
+// propõe a ficha, uma pessoa revisa, e o script grava — o catálogo é a fonte da
+// verdade de preço, e ninguém escreve nele sem passar por gente.
+const CATEGORIAS = ['conteudo', 'componente', 'integracao', 'migracao', 'seo', 'apoio'];
+
+function faixa(rotulo, chave, v) {
+  const [a, b] = v || ['', ''];
+  return `<label class="cat-faixa"><span>${rotulo}</span>
+    <input type="number" min="1" data-f="${chave}-min" value="${a}">
+    <span class="dim">a</span>
+    <input type="number" min="1" data-f="${chave}-max" value="${b}"></label>`;
+}
+
+function formularioCatalogo(f) {
+  const opc = CATEGORIAS.map((c) =>
+    `<option value="${c}" ${f.categoria === c ? 'selected' : ''}>${c}</option>`).join('');
+  return `
+    <div class="cat-form">
+      <p class="dim pequeno mt0">
+        Estimado em <strong>${esc(String(f._estimativa ?? '—'))}h</strong> nesta proposta.
+        Revise antes de gravar: o catálogo vale para todas as propostas daqui em diante.
+      </p>
+      <label class="campo"><span class="campo-rotulo">Identificador</span>
+        <input type="text" data-f="id" value="${esc(f.id || '')}" class="mono"></label>
+      <label class="campo"><span class="campo-rotulo">Nome</span>
+        <input type="text" data-f="nome" value="${esc(f.nome || '')}"></label>
+      <div class="campos">
+        <label class="campo"><span class="campo-rotulo">Categoria</span>
+          <select data-f="categoria">${opc}</select></label>
+        <label class="campo"><span class="campo-rotulo">Unidade</span>
+          <input type="text" data-f="unidade" value="${esc(f.unidade || '')}"></label>
+      </div>
+      <div class="cat-faixas">
+        ${faixa('baixa', 'baixa', f.horas_baixa)}
+        ${faixa('média', 'media', f.horas_media)}
+        ${faixa('alta', 'alta', f.horas_alta)}
+      </div>
+      <label class="campo largo"><span class="campo-rotulo">Critério de complexidade</span>
+        <textarea data-f="criterio_complexidade" rows="4">${esc(f.criterio_complexidade || '')}</textarea>
+        <span class="campo-dica">É o texto que o agente lê para classificar as próximas cotações.</span></label>
+      <label class="campo largo"><span class="campo-rotulo">Descrição para a proposta</span>
+        <input type="text" data-f="descricao_proposta" value="${esc(f.descricao_proposta || '')}">
+        <span class="campo-dica">A frase que vai ao cliente no PDF.</span></label>
+      <div class="linha" style="margin-top:12px">
+        <button class="btn primario" id="cat-gravar">Gravar no catálogo</button>
+        <button class="btn" id="cat-cancelar">Cancelar</button>
+        <span class="dim pequeno" id="cat-estado"></span>
+      </div>
+    </div>`;
+}
+
+function ligarCatalogo(raiz, id) {
+  raiz.addEventListener('click', async (e) => {
+    const botao = e.target.closest('.btn-catalogar');
+    if (!botao) return;
+
+    const nome = botao.dataset.nome;
+    const tr = botao.closest('tr');
+    if (tr.nextElementSibling?.classList.contains('cat-linha')) {
+      tr.nextElementSibling.remove();
+      return;
+    }
+
+    botao.disabled = true;
+    botao.textContent = 'lendo…';
+    let ficha;
+    try {
+      ficha = (await api.post(`/api/propostas/${id}/catalogar/propor`, { nome })).ficha;
+    } catch (err) {
+      botao.disabled = false;
+      botao.textContent = 'Catalogar';
+      return alert(err.message || 'não consegui propor a ficha');
+    }
+    botao.textContent = 'Catalogar';
+    botao.disabled = false;
+
+    tr.insertAdjacentHTML('afterend',
+      `<tr class="cat-linha"><td colspan="5">${formularioCatalogo(ficha)}</td></tr>`);
+    const caixa = tr.nextElementSibling;
+    const estado = caixa.querySelector('#cat-estado');
+
+    caixa.querySelector('#cat-cancelar').addEventListener('click', () => caixa.remove());
+    caixa.querySelector('#cat-gravar').addEventListener('click', async (ev) => {
+      const v = (k) => caixa.querySelector(`[data-f="${k}"]`)?.value.trim() || '';
+      const par = (k) => [Number(v(`${k}-min`)), Number(v(`${k}-max`))];
+      const nova = {
+        id: v('id'), nome: v('nome'), categoria: v('categoria'), unidade: v('unidade'),
+        horas_baixa: par('baixa'), horas_media: par('media'), horas_alta: par('alta'),
+        criterio_complexidade: v('criterio_complexidade'),
+        descricao_proposta: v('descricao_proposta'),
+      };
+      ev.target.disabled = true;
+      estado.textContent = 'gravando…';
+      try {
+        await api.post(`/api/propostas/${id}/catalogar`, { nome, ficha: nova });
+        location.reload();
+      } catch (err) {
+        estado.textContent = '';
+        ev.target.disabled = false;
+        alert(err.message || 'não deu para gravar');
+      }
+    });
   });
 }

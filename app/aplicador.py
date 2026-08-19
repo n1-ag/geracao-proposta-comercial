@@ -80,16 +80,24 @@ def _aplicar_no_escopo(escopo: dict, op: dict) -> str:
     cid = op.get("catalogo_id")
     nome = op.get("nome") or cid
 
-    if tipo in ("valor_item", "horas_item"):
+    if tipo == "valor_item":
+        item = _linha(itens, op)
+        if item is None:
+            raise ValueError("não achei a linha para fixar o valor")
+        item["valor_fixo"] = op["valor"]
+        item.pop("horas", None)          # valor decidido manda; hora vira referência
+        return f"- **Valor fixado:** `{cid}` — {nome}: {_brl(op['valor'])}"
+
+    if tipo == "horas_item":
         item = _linha(itens, op)
         if item is None:
             raise ValueError("não achei a linha para fixar as horas")
         item["horas"] = op["horas"]
+        item.pop("valor_fixo", None)
         # A complexidade deixa de mandar no esforço, mas continua no arquivo:
         # ela é o registro de como o item foi classificado, e apagá-la perderia
         # a informação de que a fixação foi uma decisão contra a faixa.
-        return (f"- **Horas fixadas:** `{cid}` — {nome}: {op['horas']}h por unidade"
-                + (f" (pedido de {_brl(op['valor'])})" if tipo == "valor_item" else ""))
+        return f"- **Horas fixadas:** `{cid}` — {nome}: {op['horas']}h por unidade"
 
     if tipo == "item_incluso":
         item = _linha(itens, op) if op.get("ja_cotado") else None
@@ -103,6 +111,7 @@ def _aplicar_no_escopo(escopo: dict, op: dict) -> str:
         else:
             item["incluso_no_padrao"] = True
             item.pop("horas", None)
+            item.pop("valor_fixo", None)
         return f"- **Incluso no valor base:** `{cid}` — {nome}, cotado a zero nesta proposta"
 
     if tipo == "remover_item":

@@ -221,10 +221,12 @@ def cmd_escopo(args) -> int:
     # Campos de decisão humana sem rastro de quem decidiu: daqui a três meses
     # ninguém sabe se as 24h foram negociadas ou se o agente escorregou.
     for i in esc.get("itens", []):
-        manual = i.get("horas") is not None or i.get("incluso_no_padrao")
+        manual = (i.get("horas") is not None or i.get("incluso_no_padrao")
+                  or i.get("valor_fixo") is not None)
         if manual and not i.get("origem"):
             r.falha(f"item '{i.get('catalogo_id')}' tem decisão manual "
-                    f"(horas fixadas ou incluso) sem `origem` que diga de onde veio")
+                    f"(valor ou horas fixados, ou incluso) sem `origem` "
+                    f"que diga de onde veio")
         elif manual:
             r.passou()
 

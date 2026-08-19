@@ -32,6 +32,10 @@ from roteador import erro_400, erro_409, rota
 COMPLEXIDADES = ("baixa", "media", "alta")
 
 
+def _brl(v) -> str:
+    return "R$ " + f"{float(v):,.2f}".replace(",", "§").replace(".", ",").replace("§", ".")
+
+
 def catalogo() -> dict:
     with open(cfg.DADOS_REPO / "catalogo-modulos.toml", "rb") as f:
         return {i["id"]: i for i in tomllib.load(f)["itens"]}
@@ -53,6 +57,31 @@ def listar_itens(req):
             "criterio": i.get("criterio_complexidade"),
         })
     return {"itens": sorted(itens, key=lambda x: (x["categoria"] or "", x["nome"]))}
+
+
+def _valor_fixo(bruto: dict, item: dict) -> dict:
+    """Lê o campo Valor do editor. Vazio devolve a linha ao cálculo por horas.
+
+    O mesmo interpretador do `precificar.py`: aceita `3500`, `3.500,00`,
+    `R$ 3.500`. Uma segunda implementação de leitura de moeda já custou um
+    "36.000,00" virar dez vezes o preço combinado.
+    """
+    bruta = bruto.get("valor_fixo")
+    if bruta in (None, "", False):
+        return {}
+
+    import sys as _sys
+    _sys.path.insert(0, str(cfg.SCRIPTS))
+    from precificar import ler_valor
+
+    try:
+        valor = float(ler_valor(bruta))
+    except (ValueError, TypeError):
+        raise erro_400("valor_invalido",
+                       f"não entendi o valor de '{item['nome']}': {bruta!r}") from None
+    if valor < 0:
+        raise erro_400("valor_invalido", f"o valor de '{item['nome']}' não pode ser negativo")
+    return {"valor_fixo": valor}
 
 
 def _validar(itens: list, cat: dict) -> list:
@@ -98,6 +127,7 @@ def _validar(itens: list, cat: dict) -> list:
             # O nome que o cliente lê. Sem ele, itens repetidos viram linhas
             # idênticas no PDF com preços diferentes.
             "rotulo": (bruto.get("rotulo") or "").strip(),
+            **_valor_fixo(bruto, item),
             "design_pela_n1": bool(bruto.get("design_pela_n1", True)),
             "origem": origem,
             "observacao": (bruto.get("observacao") or "").strip(),

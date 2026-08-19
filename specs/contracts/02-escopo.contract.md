@@ -97,6 +97,7 @@ nunca por agente:
 | Campo | Onde | O que faz |
 |---|---|---|
 | `horas` | no item | fixa o esforço da linha, no lugar da faixa do catálogo |
+| `valor_fixo` | no item | fixa o preço da linha; o valor digitado é o que sai, sem arredondar para hora fechada, e o rateio de um total negociado não mexe nele |
 | `incluso_no_padrao` | no item | a linha passa a custar zero e a aparecer entre os inclusos, **nesta proposta** |
 | `valor_base_override` | na raiz | substitui o valor base da plataforma |
 
