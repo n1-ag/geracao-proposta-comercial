@@ -268,6 +268,18 @@ CAMPOS_INTERNOS = (
 # precisa saber quanto paga se estourar o pacote, e escondê-la seria pior.
 CAMPOS_INTERNOS_EVOLUCAO = ("valor_hora_fmt",)
 
+# Casar por número é ambíguo — dois campos podem ter o mesmo texto. O rótulo
+# não: quem escreve "Valor da hora técnica" está anunciando a taxa, ponto. Esta
+# é a checagem que de fato segura a regra; a de número virou rede secundária.
+ROTULOS_PROIBIDOS = (
+    ("valor da hora", "o valor da hora técnica não vai para a proposta"),
+    ("valor hora", "o valor da hora técnica não vai para a proposta"),
+    ("total de esforço", "o total de horas não vai para a proposta"),
+    ("escopo adicional mapeado", "o total de horas não vai para a proposta"),
+    ("esforço em horas", "o esforço não é o que o cliente compra"),
+    ("esforço adicional", "o esforço não é o que o cliente compra"),
+)
+
 
 def _subarvore(orc: dict, chave: str) -> dict:
     return orc.get(chave) or {}
@@ -308,6 +320,24 @@ def horas_permitidas(orc: dict) -> set:
     return {re.sub(r"\s+", " ", x).strip() for x in perm}
 
 
+def valores_publicos(orc: dict) -> set:
+    """Todo `*_fmt` que NÃO é campo interno — ou seja, o que pode ser impresso."""
+    perm = set()
+
+    def anda(n):
+        if isinstance(n, dict):
+            for k, v in n.items():
+                if isinstance(v, str) and k.endswith("_fmt") and k not in CAMPOS_INTERNOS:
+                    perm.add(v.strip())
+                anda(v)
+        elif isinstance(n, list):
+            for v in n:
+                anda(v)
+
+    anda(orc)
+    return perm
+
+
 def valores_internos(orc: dict) -> set:
     """Os textos formatados que o HTML não pode conter."""
     achados = set()
@@ -329,7 +359,14 @@ def valores_internos(orc: dict) -> set:
         v = evo.get(k)
         if v:
             achados.add(str(v).strip())
-    return achados
+
+    # Um mesmo texto pode ser campo interno e campo público ao mesmo tempo:
+    # numa faixa de fee, `valor_hora_fmt` e `hora_excedente_fmt` são os dois
+    # "R$ 220,00". Pelo texto não dá para saber qual deles o HTML quis dizer, e
+    # acusar no escuro reprovou a Pekon por causa da cláusula de hora excedente,
+    # que é justamente o que deve aparecer. Na dúvida, não acusa — quem pega o
+    # vazamento de verdade é a checagem por rótulo, que não é ambígua.
+    return achados - valores_publicos(orc)
 
 
 def valores_permitidos(orc: dict) -> set:
@@ -366,6 +403,10 @@ def cmd_numeros(args) -> int:
     # centavos menores. Remover as tags deixa um espaço no meio do número; sem
     # esta costura, todo valor destacado viraria falso positivo.
     texto = re.sub(r"(\d)\s+(,\d{2})", r"\1\2", texto)
+    # "publicação após as 16h" é hora do relógio, não número de orçamento.
+    # Sai antes de qualquer varredura: a política de publicação é texto fixo da
+    # proposta e não tem por que constar do JSON de preços.
+    texto = RE_RELOGIO.sub(" ", texto)
     perm = valores_permitidos(orc)
 
     for regex, rotulo in ((RE_DINHEIRO, "valor"), (RE_HORAS, "horas"), (RE_PCT, "percentual")):
@@ -379,11 +420,8 @@ def cmd_numeros(args) -> int:
     # Bater com o orçamento não basta: há número que confere e mesmo assim não
     # deveria estar num documento que vai para o cliente.
     horas_ok = horas_permitidas(orc)
-    # "publicação após as 16h" é hora do relógio, não esforço. Sai da varredura
-    # antes da conta, senão a política de publicação reprova a proposta.
-    sem_relogio = RE_RELOGIO.sub(" ", texto)
     vazadas = sorted({re.sub(r"\s+", " ", m.group()).strip()
-                      for m in RE_HORAS.finditer(sem_relogio)} - horas_ok)
+                      for m in RE_HORAS.finditer(texto)} - horas_ok)
     if vazadas:
         resto = len(vazadas) - 8
         r.falha(
@@ -409,6 +447,15 @@ def cmd_numeros(args) -> int:
             + ". São campos de cálculo nosso — valor da hora e esforço — e não "
               "entram no documento."
         )
+    else:
+        r.passou()
+
+    baixo = texto.lower()
+    achados_rotulo = [(rot, por) for rot, por in ROTULOS_PROIBIDOS if rot in baixo]
+    if achados_rotulo:
+        for rot, por in achados_rotulo:
+            r.falha(f"rótulo proibido no HTML: «{rot}» — {por}. "
+                    f"Tire a linha ou o cartão inteiro; não basta trocar o número.")
     else:
         r.passou()
 

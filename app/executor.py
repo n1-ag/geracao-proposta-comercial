@@ -659,6 +659,7 @@ def _bloco_pdf(ctx: dict, fases: list[str] | None = None) -> None:
         _fase_claude(ctx, "04")
 
     tentativa = 1
+    auditorias = 0
     sufixo = ""
     while True:
         if "05" in fases or tentativa > 1:
@@ -666,7 +667,33 @@ def _bloco_pdf(ctx: dict, fases: list[str] | None = None) -> None:
 
         ok, mensagem = scripts_runner.auditar_html()
         if not ok:
-            raise FalhaDeFase("05", mensagem)
+            # Reprovar sem devolver o motivo mata a proposta com o trabalho
+            # pronto ao lado. O montador recebe o relatório e corrige — é o
+            # mesmo tratamento que o transbordo já tinha.
+            if auditorias >= cfg.MAX_RETRY_AUDITORIA:
+                raise FalhaDeFase("05", mensagem)
+            auditorias += 1
+            tentativa += 1
+            sufixo = (
+                "O HTML que você montou não passou na auditoria de números. "
+                "Corrija **no `proposta/proposta.html`** e não mexa em mais nada.\n\n"
+                f"{mensagem.strip()}\n\n"
+                "Como corrigir:\n"
+                "- Rótulo proibido: apague a linha `<tr>` ou o `<div class=\"stat\">` "
+                "inteiro. Trocar o número não resolve — é o rótulo que não pode existir.\n"
+                "- Esforço em horas: tire o `NNh · ` do `td.val`, deixando só o valor. "
+                "Na linha de total, idem.\n"
+                "- Se sobrar um cartão a menos na faixa de `.stat`, ponha no lugar um "
+                "número que o orçamento já tenha (prazo, número de módulos), nunca hora "
+                "nem valor da hora.\n"
+                "- A cláusula de horas excedentes **fica**: é preço que o cliente paga.\n"
+                f"Tentativa {auditorias} de {cfg.MAX_RETRY_AUDITORIA}."
+            )
+            eventos.progresso(ctx["proposta_id"], "05",
+                              "a auditoria reprovou o HTML — devolvendo para o montador corrigir",
+                              tipo="aviso")
+            db.evento(ctx["proposta_id"], "auditoria_html_retry", mensagem[:600])
+            continue
 
         ok, dados, mensagem = _fase_script(
             ctx, "06a", "python3 scripts/render_pdf.py",

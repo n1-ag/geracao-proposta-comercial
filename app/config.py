@@ -84,6 +84,13 @@ ESPERA_SIGKILL_S = 5
 # Quantas vezes reinvocar /proposta-html quando o render acusar transbordo.
 MAX_RETRY_TRANSBORDO = 2
 
+# Idem quando a auditoria de números reprovar o HTML. Sem isto, uma regra nova
+# de auditoria derruba toda proposta em produção e não há caminho de volta a não
+# ser mexer no código — foi o que aconteceu quando o esforço em horas passou a
+# reprovar: o montador escrevia o documento inteiro e morria na linha de
+# chegada, com o erro na tela e nenhuma correção automática.
+MAX_RETRY_AUDITORIA = 2
+
 
 def modelo_da_fase(fase: str) -> str:
     if ECONOMICO:
