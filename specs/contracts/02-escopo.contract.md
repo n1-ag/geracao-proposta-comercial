@@ -88,6 +88,26 @@ quem escreve é o `precificar.py`, que compõe `rotulo_exibido` a partir de
 gate.
 
 Sem `rotulo`, vale o `nome` do catálogo — o comportamento de sempre.
+
+### Campos de decisão humana — o agente **não** escreve
+
+Três campos existem para o comercial ajustar no gate, e são gravados pelo app,
+nunca por agente:
+
+| Campo | Onde | O que faz |
+|---|---|---|
+| `horas` | no item | fixa o esforço da linha, no lugar da faixa do catálogo |
+| `incluso_no_padrao` | no item | a linha passa a custar zero e a aparecer entre os inclusos, **nesta proposta** |
+| `valor_base_override` | na raiz | substitui o valor base da plataforma |
+
+Os três disparam alerta de severidade alta, que trava o botão de aprovar até
+alguém reconhecer. São exceções declaradas, não atalhos.
+
+Você, agente, **continua sem escrever valor e sem somar hora**. Se um ajuste
+pedir preço ou esforço, ele não chega até você: o app resolve antes, com o
+número que a pessoa escreveu e conferiu na tela. Se mesmo assim aparecer um
+pedido desses no `ajustes.md`, registre que não é seu e siga.
+
 `auditar.py escopo` reprova `catalogo_id` repetido cujos rótulos não distingam
 uma linha da outra.
 

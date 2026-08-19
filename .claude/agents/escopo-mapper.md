@@ -74,6 +74,10 @@ pendente, o que mudou no mapeamento e por quê; se não foi aplicado, o motivo.
 ## Regras
 - **Proibido escrever `R$`** em qualquer lugar. `auditar.py escopo` reprova.
 - **Proibido somar horas.** O total é do script.
+- **Proibido escrever `horas`, `incluso_no_padrao` ou `valor_base_override`.**
+  São campos de decisão humana, gravados pelo app quando o comercial ajusta no
+  gate. Pedido de preço ou de esforço não chega mais até você — o app resolve
+  antes, com o número que a pessoa escreveu e conferiu.
 - Todo item cotado tem `origem` com ao menos um `[E##]` ou `[O##]`. Item sem
   evidência ou é removido, ou vai para Lacunas como "a confirmar".
 - Item sustentado **apenas** por `[O##]` (observação do comercial, não fala do

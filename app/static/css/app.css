@@ -1284,3 +1284,39 @@ body.pagina-login {
   border-color: var(--ciano-esc);
   box-shadow: 0 0 0 3px rgba(60,203,218,.14);
 }
+
+/* ------------------------------------------- interpretação do ajuste ------ */
+
+.op-titulo { margin: 18px 0 10px; font-size: 13px; }
+
+.ops { display: flex; flex-direction: column; gap: 2px; }
+
+/* Três colunas: o que você escreveu, a seta, o que vai acontecer. Ler de
+   esquerda para a direita é a conferência inteira. */
+.op {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1.2fr);
+  align-items: start;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.op:nth-child(odd) { background: rgba(255,255,255,.025); }
+
+.op label { display: flex; gap: 8px; align-items: start; cursor: pointer; margin: 0; }
+.op input[type="checkbox"] { margin-top: 3px; flex: none; }
+.op-trecho { color: var(--texto-2); }
+.op-seta   { color: var(--texto-3); text-align: center; }
+.op-acao   { color: var(--texto); }
+.op-acao strong { color: var(--ciano); font-weight: 600; }
+
+.op.recusada .op-trecho { text-decoration: line-through; opacity: .55; }
+.op-nao { color: var(--ambar); }
+
+@media (max-width: 900px) {
+  .op { grid-template-columns: 1fr; }
+  .op-seta { display: none; }
+  .op-acao { padding-left: 24px; }
+}

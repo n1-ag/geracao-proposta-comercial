@@ -442,14 +442,15 @@ function acoesGate(d) {
         <textarea id="texto-ajuste" rows="4"
           placeholder="Escreva em português corrido, do jeito que você diria ao time. Ex.: &quot;o megamenu já está incluso no comum, não cobra separado&quot; ou &quot;tira uma landing page, ficaram 3&quot;."></textarea>
         <span class="campo-dica">
-          O agente relê a transcrição e o catálogo, aplica o ajuste e o script recalcula.
-          Isso <strong>derruba a aprovação</strong> e refaz as fases 02 e 03 — leva alguns minutos.
-          <br><strong>Para mudar o preço, use «Fechar valor».</strong> O agente mexe no
-          escopo, nunca no valor — se você pedir um número aqui, ele vai registrar
-          que não pôde aplicar e o total continuará saindo do cálculo.
+          Escreva tudo de uma vez: valor final, preço ou horas de um módulo, item
+          que passa a ser incluso, prazo, o que tirar ou acrescentar. Eu leio,
+          mostro o que entendi de cada frase, e só aplico depois que você
+          confirmar. O que o cálculo resolve sozinho é instantâneo — só o que
+          sobra vai para o agente.
         </span>
       </label>
-      <button class="btn primario" id="btn-enviar-ajuste">Reprocessar com este ajuste</button>
+      <button class="btn primario" id="btn-enviar-ajuste">Ler meu pedido</button>
+      <div id="interpretacao" hidden></div>
     </div>
   </div>`;
 }
@@ -652,19 +653,104 @@ function ligar(raiz, id) {
     if (!caixa.hidden) raiz.querySelector('#texto-ajuste').focus();
   });
 
+  // Duas etapas: ler e mostrar, depois aplicar o que foi confirmado. A primeira
+  // não muda nada — é o que permite discordar antes de o orçamento se mexer.
+  const painel = raiz.querySelector('#interpretacao');
+
+  const descrever = (o) => {
+    const v = (x) => (x ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    switch (o.tipo) {
+      case 'valor_total':  return `Valor final da proposta → <strong>${v(o.valor)}</strong>`;
+      case 'valor_item':   return `${esc(o.nome)} → <strong>${o.horas}h</strong> · ${v(o.valor_efetivo)}`
+        + (Math.abs(o.valor_efetivo - o.valor) > 0.5
+            ? `<span class="dim"> — você pediu ${v(o.valor)}; a ${v(o.valor_efetivo / o.horas / (o.quantidade||1))}/h o mais próximo é ${v(o.valor_efetivo)}</span>` : '');
+      case 'horas_item':   return `${esc(o.nome)} → <strong>${o.horas}h</strong> · ${v(o.valor_efetivo)}`;
+      case 'item_incluso': return `${esc(o.nome)} → <strong>incluso no valor base</strong>, sem custo`
+        + (o.ja_cotado ? '' : '<span class="dim"> — será acrescentado ao escopo</span>');
+      case 'remover_item': return `${esc(o.nome)} → <strong>removido</strong> do escopo`;
+      case 'acrescentar_item': return `Acrescentar <strong>${esc(o.rotulo || o.nome)}</strong>`
+        + ` (${o.complexidade || 'regra própria'}, ${o.quantidade}×)`;
+      case 'rotulo_item':  return `${esc(o.nome)} → aparece como «<strong>${esc(o.rotulo)}</strong>»`;
+      case 'valor_base':   return `Valor base → <strong>${v(o.valor)}</strong>`;
+      case 'prazo':        return `Prazo → <strong>${o.min} a ${o.max} semanas</strong>`;
+      case 'texto_livre':  return `<strong>Vai para o agente:</strong> ${esc(o.instrucao || '')}`;
+      default:             return esc(o.tipo);
+    }
+  };
+
+  const pintarInterpretacao = (d) => {
+    const linhas = d.operacoes.map((o, k) => `
+      <div class="op ${o.ok ? '' : 'recusada'}">
+        <label>
+          <input type="checkbox" class="op-chk" data-k="${k}" ${o.ok ? 'checked' : 'disabled'}>
+          <span class="op-trecho">${esc(o.trecho || '—')}</span>
+        </label>
+        <div class="op-seta">→</div>
+        <div class="op-acao">${o.ok ? descrever(o) : `<span class="op-nao">${esc(o.motivo)}</span>`}</div>
+      </div>`).join('');
+
+    const resumo = [
+      d.instantaneas ? `${d.instantaneas} instantânea(s)` : '',
+      d.pelo_agente ? `${d.pelo_agente} pelo agente (alguns minutos)` : '',
+      d.recusadas ? `${d.recusadas} não entendida(s)` : '',
+    ].filter(Boolean).join(' · ');
+
+    painel.innerHTML = `
+      <h3 class="op-titulo">Entendi isto</h3>
+      <div class="ops">${linhas}</div>
+      <div class="linha" style="margin-top:14px;align-items:center">
+        <button class="btn primario" id="btn-aplicar-ajuste">Aplicar</button>
+        <button class="btn" id="btn-refazer-leitura">Reescrever o pedido</button>
+        <span class="dim pequeno">${esc(resumo)}</span>
+      </div>`;
+    painel.hidden = false;
+    painel.dataset.ops = JSON.stringify(d.operacoes);
+  };
+
   raiz.querySelector('#btn-enviar-ajuste').addEventListener('click', async (e) => {
     const texto = raiz.querySelector('#texto-ajuste').value.trim();
     if (texto.length < 5) return mostrarErro('Escreva o que precisa mudar no orçamento.');
 
     erro.hidden = true;
     e.target.disabled = true;
-    estado.textContent = 'reprocessando as fases 02 e 03…';
+    estado.textContent = 'lendo o seu pedido…';
     try {
-      await api.post(`/api/propostas/${id}/ajustar`, { texto });
-      location.hash = `#/proposta/${id}`;
+      pintarInterpretacao(await api.post(`/api/propostas/${id}/ajustar/interpretar`, { texto }));
+      estado.textContent = '';
     } catch (err) {
-      mostrarErro(`<strong>Não deu para pedir o ajuste.</strong> ${esc(err.message)}`);
+      mostrarErro(`<strong>Não consegui ler o pedido.</strong> ${esc(err.message)}`);
+    } finally {
       e.target.disabled = false;
+    }
+  });
+
+  painel?.addEventListener('click', async (ev) => {
+    if (ev.target.id === 'btn-refazer-leitura') {
+      painel.hidden = true;
+      raiz.querySelector('#texto-ajuste').focus();
+      return;
+    }
+    if (ev.target.id !== 'btn-aplicar-ajuste') return;
+
+    const todas = JSON.parse(painel.dataset.ops || '[]');
+    const escolhidas = [...painel.querySelectorAll('.op-chk:checked')]
+      .map((c) => todas[Number(c.dataset.k)]);
+    if (!escolhidas.length) return mostrarErro('Marque ao menos uma operação.');
+
+    ev.target.disabled = true;
+    estado.textContent = 'aplicando…';
+    try {
+      const r = await api.post(`/api/propostas/${id}/ajustar/aplicar`, {
+        texto: raiz.querySelector('#texto-ajuste').value.trim(),
+        operacoes: escolhidas,
+      });
+      // Só recarrega aqui se nada foi para a fila; se foi, o detalhe mostra o
+      // acompanhamento da execução.
+      location.hash = r.execucao_id ? `#/proposta/${id}` : location.hash;
+      location.reload();
+    } catch (err) {
+      mostrarErro(`<strong>Não deu para aplicar.</strong> ${esc(err.message)}`);
+      ev.target.disabled = false;
       estado.textContent = '';
     }
   });

@@ -252,8 +252,30 @@ def horas_do_item(dados: Dados, item: dict, sel: dict, design_do_cliente: bool) 
     imp = dados.precos["implantacao"]
     politica = imp["politica_faixa_horas"]
 
+    # Uma pessoa disse que este item, nesta proposta, está incluso. Vale para o
+    # cliente que negociou assim; a lista global de `precos.toml` continua sendo
+    # o padrão de todo mundo.
+    if sel.get("incluso_no_padrao"):
+        return 0, 0, 0, {"regra": "incluso_por_decisao"}, "ITEM_INCLUSO_POR_DECISAO"
+
     if item.get("no_escopo_padrao"):
         return 0, 0, 0, {"regra": "escopo_padrao"}, "ITEM_JA_INCLUSO"
+
+    # Horas fixadas à mão vencem a faixa do catálogo. É como "cote o
+    # personalizador em 16 horas" e "esse módulo vale 6 mil" chegam ao cálculo:
+    # o segundo vira o primeiro por uma divisão feita em Python, nunca por um
+    # agente escrevendo valor.
+    if sel.get("horas") is not None:
+        try:
+            h = int(sel["horas"])
+        except (TypeError, ValueError):
+            raise SystemExit(
+                f"erro: item '{sel.get('catalogo_id')}' com `horas` não inteiro: {sel['horas']!r}"
+            ) from None
+        if h < 0:
+            raise SystemExit(f"erro: item '{sel.get('catalogo_id')}' com `horas` negativo")
+        return h, h, h, {"regra": "horas_fixadas", "complexidade": sel.get("complexidade")}, \
+            "HORAS_FIXADAS_MANUALMENTE"
 
     if item.get("regra_especial") == "landing_page":
         lp = imp["landing_page"]
@@ -405,7 +427,23 @@ def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
         mn, mx, hu, det, alerta = horas_do_item(dados, item, sel, design_do_cliente)
         horas = hu * qtd
         valor = D(horas) * hora
-        if alerta:
+        if alerta == "HORAS_FIXADAS_MANUALMENTE":
+            alertas.append({
+                "codigo": alerta, "severidade": "alta", "item": cid,
+                "mensagem": (
+                    f"'{item['nome']}' está com {hu}h fixadas à mão, no lugar da faixa "
+                    f"do catálogo. Confira antes de aprovar: o valor da linha sai daí."
+                ),
+            })
+        elif alerta == "ITEM_INCLUSO_POR_DECISAO":
+            alertas.append({
+                "codigo": alerta, "severidade": "alta", "item": cid,
+                "mensagem": (
+                    f"'{item['nome']}' foi marcado como incluso nesta proposta e está "
+                    f"cotado a zero. Não é o padrão da casa — vale só para este cliente."
+                ),
+            })
+        elif alerta:
             alertas.append({"codigo": alerta, "severidade": "media", "item": cid,
                             "mensagem": f"'{item['nome']}' já faz parte do escopo padrão; cotado a zero."})
         linhas.append({
@@ -444,6 +482,22 @@ def precificar_implantacao(dados: Dados, escopo: dict, valor_fechado=None,
         })
 
     base = D(plat["valor_base"])
+
+    # "Cotamos todas as páginas separadamente, remove o valor base." O base vem
+    # da plataforma em `precos.toml` e vale para o caso normal; quando o escopo
+    # inteiro foi cotado item a item, cobrá-lo de novo é cobrar duas vezes.
+    if escopo.get("valor_base_override") is not None:
+        anterior = base
+        base = D(str(escopo["valor_base_override"]))
+        if base < 0:
+            raise SystemExit("erro: `valor_base_override` não pode ser negativo")
+        alertas.append({
+            "codigo": "VALOR_BASE_ALTERADO", "severidade": "alta",
+            "mensagem": (
+                f"O valor base da plataforma ({brl(anterior)}) foi substituído por "
+                f"{brl(base)} por decisão comercial."
+            ),
+        })
     embutido = D(plat["design_embutido"])
     abatimento = embutido if design_do_cliente else D(0)
     total = base + adicionais - abatimento
