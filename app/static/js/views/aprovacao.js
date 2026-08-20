@@ -36,6 +36,7 @@ export async function montar({ conteudo, acoes, titulo, params }) {
   ligar(conteudo, id);
   ligarChat(conteudo, id);
   ligarCatalogo(conteudo, id);
+  ligarOpcoes(conteudo, id);
 }
 
 // ------------------------------------------------------------------- markup
@@ -50,7 +51,9 @@ function corpo(d, { somenteLeitura }) {
 
   return `
     ${cabecalho(d, orc, prop)}
+    ${blocoContexto(d.briefing_md)}
     ${avisoFechamento(impl)}
+    ${blocoOpcoes(impl, d.escopo, somenteLeitura)}
     ${heroi(impl, evol, totais, mensal)}
     ${tabelaEscopo(impl, d.escopo)}
     ${editorEscopo(impl, d.escopo, somenteLeitura)}
@@ -1037,5 +1040,114 @@ function ligarCatalogo(raiz, id) {
         alert(err.message || 'não deu para gravar');
       }
     });
+  });
+}
+
+// ------------------------------------------- contexto vindo do briefing ----
+
+// `briefing_md` já chegava inteiro nesta tela e servia só para achar o trecho
+// atrás de uma pílula [E##]. O resto era descartado — e é exatamente o que o
+// validador precisa ler antes de decidir: o que o cliente falou que quer.
+const SECOES_CONTEXTO = ['Contexto do negócio', 'Dores declaradas', 'Objetivo',
+                         'Demandas citadas', 'Restrições'];
+
+function recortarSecao(markdown, titulo) {
+  const linhas = (markdown || '').split('\n');
+  const abre = linhas.findIndex((l) => /^##\s/.test(l) && l.includes(titulo));
+  if (abre < 0) return '';
+  const resto = linhas.slice(abre + 1);
+  const fecha = resto.findIndex((l) => /^##\s/.test(l));
+  return resto.slice(0, fecha < 0 ? undefined : fecha).join('\n').trim();
+}
+
+function blocoContexto(briefing) {
+  const partes = SECOES_CONTEXTO
+    .map((t) => ({ titulo: t, corpo: recortarSecao(briefing, t) }))
+    .filter((p) => p.corpo);
+  if (!partes.length) return '';
+
+  return `<details class="sec card contexto" open>
+    <summary><h2 class="mb0">Contexto e demandas</h2>
+      <span class="dim pequeno">do briefing da reunião</span></summary>
+    <div class="contexto-corpo">
+      ${partes.map((p) => `<section>
+        <h3>${esc(p.titulo)}</h3>
+        ${md(p.corpo)}
+      </section>`).join('')}
+    </div>
+  </details>`;
+}
+
+// -------------------------------------------- formatos da mesma proposta ---
+
+// Uma proposta pode ser enviada em vários recortes — "só a migração", "migração
+// e desenvolvimento", "completo". O preço de cada formato é de pacote, negociado,
+// então é aqui que ele se edita; o que compõe cada um é decisão do escopo.
+function blocoOpcoes(impl, escopo, somenteLeitura) {
+  const opcoes = impl.opcoes || [];
+  if (!opcoes.length) return '';
+
+  const linhas = opcoes.map((o, k) => `
+    <tr data-opcao="${esc(o.id)}">
+      <td>
+        <div><strong>${esc(o.nome)}</strong>${o.principal
+          ? ' <span class="badge aguardando">referência</span>' : ''}</div>
+        <div class="dim pequeno">${esc(o.resumo || '')}</div>
+        <div class="dim pequeno">${(o.inclui || []).map(esc).join(' · ')}</div>
+      </td>
+      <td class="num">
+        ${somenteLeitura ? esc(o.total_fmt) : `<input class="op-valor" type="text"
+          inputmode="decimal" value="${esc(brl(o.total))}"
+          title="preço de pacote deste formato">`}
+      </td>
+    </tr>`).join('');
+
+  return `<div class="sec card" id="editor-opcoes">
+    <div class="entre" style="margin-bottom:6px">
+      <h2 class="mb0">Formatos desta proposta</h2>
+      <span class="dim pequeno">${opcoes.length} recortes da mesma entrega</span>
+    </div>
+    <p class="pequeno dim mt0">
+      Cada formato tem preço de pacote próprio. O marcado como
+      <strong>referência</strong> é de onde saem prazo, parcelamento e a tabela
+      de escopo detalhada — não é "recomendado", e não aparece destacado no PDF.
+    </p>
+    <table class="lista">
+      <thead><tr><th>Formato</th><th class="num">Valor</th></tr></thead>
+      <tbody>${linhas}</tbody>
+    </table>
+    ${somenteLeitura ? '' : `<div class="linha" style="margin-top:12px">
+      <button class="btn primario pequeno" id="btn-recalc-opcoes">Recalcular formatos</button>
+      <span class="dim pequeno" id="opcoes-estado"></span>
+    </div>`}
+  </div>`;
+}
+
+function ligarOpcoes(raiz, id) {
+  const bloco = raiz.querySelector('#editor-opcoes');
+  const botao = bloco?.querySelector('#btn-recalc-opcoes');
+  if (!botao) return;
+  const estado = bloco.querySelector('#opcoes-estado');
+
+  botao.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    estado.textContent = 'recalculando…';
+    try {
+      const opcoes = [...bloco.querySelectorAll('tr[data-opcao]')].map((tr) => ({
+        id: tr.dataset.opcao,
+        valor_fixo: tr.querySelector('.op-valor')?.value.trim() || null,
+      }));
+      // Os itens vão junto porque a rota reescreve o escopo inteiro; mandar só
+      // as opções apagaria as linhas cotadas.
+      await api.post(`/api/propostas/${id}/escopo`, {
+        itens: dados.escopo.itens || [],
+        opcoes,
+      });
+      location.reload();
+    } catch (err) {
+      estado.textContent = '';
+      e.target.disabled = false;
+      alert(err.message || 'não deu para recalcular os formatos');
+    }
   });
 }

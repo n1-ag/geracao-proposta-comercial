@@ -46,6 +46,19 @@ também: junto com `valor_hora`, ele entrega a margem, então nenhum dos dois
 aparece no PDF de implantação — `auditar.py numeros` reprova. Na evolução o
 pacote de horas é o produto e aparece normalmente.
 
+### `opcoes[]` — quando a proposta tem vários formatos
+
+Presente em `implantacao` quando o escopo trouxe `opcoes`. Cada item:
+`id`, `nome`, `resumo`, `principal`, `total(_fmt)` e `inclui[]` — os rótulos das
+linhas daquele formato, que viram os bullets do cartão no PDF.
+
+Os campos de `implantacao` fora de `opcoes[]` são **os do formato principal**:
+total, condições, prazo e linhas. É o que mantém o resto do pipeline inalterado —
+nada a jusante precisa saber que existem formatos.
+
+`inclui[]` **não traz hora**. `auditar.py numeros` só autoriza hora vinda da
+subárvore `evolucao`, e um cartão de formato não é pacote de horas.
+
 ### `valor_exibido` sob fechamento comercial
 
 Quando uma pessoa fecha o preço na negociação, as linhas calculadas não somam o

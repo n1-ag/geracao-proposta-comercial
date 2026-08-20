@@ -218,6 +218,32 @@ def cmd_escopo(args) -> int:
         else:
             r.passou()
 
+    # Uma proposta em vários formatos precisa de exatamente um formato de
+    # referência: é dele que saem prazo, parcelamento e a tabela detalhada.
+    # Nenhum, ou dois, e o documento não sabe qual preço está prometendo.
+    opcoes = esc.get("opcoes") or []
+    if opcoes:
+        principais = [o for o in opcoes if o.get("principal")]
+        if len(principais) != 1:
+            r.falha(f"a proposta tem {len(opcoes)} formatos e {len(principais)} marcados "
+                    f"como `principal` — precisa ser exatamente um, de onde saem prazo, "
+                    f"parcelamento e a tabela detalhada")
+        else:
+            r.passou()
+        for o in opcoes:
+            if not (o.get("id") or "").strip() or not (o.get("nome") or "").strip():
+                r.falha(f"formato sem `id` ou `nome`: {json.dumps(o, ensure_ascii=False)[:90]}")
+            elif not (o.get("itens") or o.get("itens_fora_catalogo")):
+                r.falha(f"formato '{o.get('nome')}' não tem item nenhum")
+            elif o.get("valor_fixo") is None:
+                r.falha(f"formato '{o.get('nome')}' sem `valor_fixo` — o preço de "
+                        f"pacote de cada formato é decisão comercial, não do cálculo")
+            else:
+                r.passou()
+        ids = [o.get("id") for o in opcoes]
+        if len(set(ids)) != len(ids):
+            r.falha(f"formatos com `id` repetido: {ids}")
+
     # Plataforma fora da lista mata a fase 03 com um `SystemExit` seco, depois de
     # quinze minutos de agente já gastos. A Ikebana está mesmo em Medusa, o
     # agente leu certo — o que faltava era alguém dizer que o preço só existe

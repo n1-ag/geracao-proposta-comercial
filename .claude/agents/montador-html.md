@@ -87,3 +87,11 @@ A **hora excedente** é outra coisa e continua na proposta: é cláusula, o clie
 precisa saber quanto paga se estourar o pacote, e escondê-la seria pior do que
 mostrá-la.
 
+## A seção de formatos
+
+`implantacao.opcoes` presente → monte `02b-opcoes.html` entre a 02 e a 03, com
+um `opcao-card.html` por formato, na ordem do JSON. Valor de cada cartão é
+`opcoes[].total_fmt`; os bullets são `opcoes[].inclui`.
+
+Sem selo, sem hora, sem destacar a principal. O exemplar
+`templates/exemplo/implantacao-shopify.html` já traz a seção montada — siga-o.

@@ -78,6 +78,13 @@ pendente, o que mudou no mapeamento e por quê; se não foi aplicado, o motivo.
   wordpress, template-html. É onde há valor base. Stack fora dela — Medusa,
   Magento, headless próprio — não vira plataforma nova: escolha a mais próxima,
   registre a stack real em Lacunas, e siga. Inventar o nome derruba a fase 03.
+- **Quando a reunião promete vários formatos** — "mando num formato só a
+  migração, noutro migração e desenvolvimento, noutro completo" — monte
+  `opcoes`, um por formato, cada um com seus `itens`. Marque como `principal` o
+  mais completo: é dele que saem prazo, parcelamento e a tabela detalhada. "Sem
+  a parte de design" se escreve com `design_fornecido_pelo_cliente: true` na
+  opção, não tirando itens. **Você não preenche `valor_fixo`**: o preço de
+  pacote de cada formato é decisão comercial, feita no gate.
 - **Proibido escrever `horas`, `valor_fixo`, `incluso_no_padrao` ou
   `valor_base_override`.**
   São campos de decisão humana, gravados pelo app quando o comercial ajusta no

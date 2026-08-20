@@ -48,6 +48,13 @@ mostrá-la.
   dois são iguais na maioria das propostas; quando houve fechamento comercial,
   só o `exibido` soma o total impresso.
 
+### `## 02B FORMATOS` *(só quando o orçamento tem `implantacao.opcoes`)*
+- `intro`: até 320 caracteres; diga a qual formato a tabela detalhada se refere
+- por cartão: `nome` ≤ 34 caracteres · `resumo` ≤ 160 · 3 a 5 bullets ≤ 46 cada
+- `nota`: até 200 caracteres
+- Nome e valor de cada formato vêm de `implantacao.opcoes[]`. Não invente
+  formato, não reordene: a ordem do JSON é a ordem do documento.
+
 ### `## 03 CONDUCAO`
 - `intro`: até 240 caracteres
 - 5 etapas de fluxo; título ≤ 16 caracteres, texto ≤ 46

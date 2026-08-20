@@ -96,6 +96,35 @@ gate.
 
 Sem `rotulo`, vale o `nome` do catálogo — o comportamento de sempre.
 
+### `opcoes` — a mesma proposta em vários formatos
+
+Reunião em que o vendedor promete "mando num formato só a migração, noutro
+migração e desenvolvimento, noutro completo" pede uma proposta com vários
+formatos. Sem isto, a ferramenta produz um escopo e um preço, e a promessa vira
+três documentos feitos à mão.
+
+```json
+"opcoes": [
+  { "id": "migracao", "nome": "Migração de dados",
+    "resumo": "frase curta do que este formato resolve",
+    "itens": [ … ], "valor_fixo": 18000 },
+  { "id": "completo", "nome": "Escopo completo", "itens": [ … ],
+    "valor_fixo": 42000, "principal": true }
+]
+```
+
+- **Exatamente uma opção é `principal`.** É dela que saem prazo, parcelamento e
+  a tabela de escopo detalhada do documento. Não é "recomendada" — não há selo
+  no PDF; é a referência. Use o formato mais completo, que contém os outros.
+- Cada opção tem `itens` próprios, no mesmo schema dos itens da proposta.
+- Uma opção pode redefinir `design_fornecido_pelo_cliente` e
+  `valor_base_override`. É assim que "sem a parte de design" se representa: o
+  abatimento de design já existe e é a forma certa de dizer isso.
+- **`valor_fixo` é obrigatório e você não o escreve.** O preço de pacote de cada
+  formato é decisão comercial, preenchida no gate. Monte os formatos e deixe o
+  valor de fora; `auditar.py escopo` cobra o preenchimento antes de aprovar.
+- Sem `opcoes`, tudo funciona como sempre funcionou.
+
 ### Campos de decisão humana — o agente **não** escreve
 
 Três campos existem para o comercial ajustar no gate, e são gravados pelo app,

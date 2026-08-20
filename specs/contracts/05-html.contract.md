@@ -23,6 +23,7 @@ Lê os arquivos de `templates/`, substitui marcadores e concatena.
 | capa | `capa.html` | `capa.html` |
 | 01 | `01-apresentacao.html` | `01-apresentacao.html` |
 | 02 | `02-escopo-modulos.html` | `02-escopo-evolucao.html` |
+| 02b | `02b-opcoes.html` **se** `implantacao.opcoes` | — |
 | 03 | `03-conducao.html` (fluxo de projeto) | `03-conducao.html` (fluxo de demanda) |
 | 04 | `04-investimento-implantacao.html` | `04-investimento-evolucao.html` |
 | 04b | `04b-alternativa-evolucao.html` **se** `evolucao.aplicavel` | — |
@@ -40,6 +41,7 @@ Envelope: `{{SEC_HEAD_CLASSES}}` `{{SEC_NUM_HTML}}` `{{SEC_TITULO}}`
 Capa: `{{CAPA_REF}}` `{{CAPA_TITULO_HTML}}` `{{CAPA_SUBTITULO}}` `{{FACTBAR_ITENS}}`
 01: `{{APRESENTACAO_PARAGRAFOS}}` `{{STATS_ITENS}}` `{{PORQUE_TITULO}}` `{{PORQUE_ITENS}}` `{{COBERTURA_TITULO}}` `{{COBERTURA_ITENS}}`
 02: `{{ESCOPO_INTRO}}` `{{FRENTES}}` `{{TABELA_TITULO}}` `{{ESCOPO_TABELA_LINHAS}}` `{{ESCOPO_NOTA}}`
+02b: `{{OPCOES_INTRO}}` `{{OPCOES_CARDS}}` `{{OPCOES_NOTA}}`
 03: `{{CONDUCAO_INTRO}}` `{{FLOW_ETAPAS}}` `{{CONDUCAO_CARD_DESTAQUE}}` `{{CONDUCAO_DUAS_COLUNAS}}` `{{CONDUCAO_CARD_RODAPE}}`
 04: `{{PRICE_TAG}}` `{{PRICE_VALOR}}` `{{PRICE_CENTAVOS}}` `{{PRICE_SUFIXO}}` `{{PRICE_META_ITENS}}` `{{PRICE_NOTA}}` `{{PLANOS}}` `{{CONDICOES_TITULO}}` `{{TABELA_CONDICOES_LINHAS}}` `{{INCLUI_TITULO}}` `{{INCLUI_ITENS}}` `{{COMPLEMENTARES_TITULO}}` `{{COMPLEMENTARES_CARD}}` `{{INVEST_RODAPE_NOTA}}` `{{VALIDADE_NOTA}}`
 04b: `{{ALT_INTRO}}` `{{ALT_TAG}}` `{{ALT_PRICE_VALOR}}` `{{ALT_PRICE_CENTAVOS}}` `{{ALT_META_ITENS}}` `{{ALT_PRICE_NOTA}}` `{{ALT_TABELA_TITULO}}` `{{ALT_TABELA_LINHAS}}` `{{ALT_CARD}}`
@@ -48,11 +50,24 @@ Fim: `{{CLOSE_HEADLINE}}` `{{CLOSE_TEXTO}}` `{{PASSOS}}` `{{CONTATOS}}` `{{CLOSE
 
 Blocos repetíveis: `factbar-item` (2–4) · `stat` (3–4) · `bullet-lead` /
 `bullet` · `frente` (até 5) · `flow-etapa` (4–5) · `card` · `price-meta` (1–3) ·
-`plano-card` (3) · `linha-tabela` (+`linha-tabela-sub`) · `check-item` ·
+`plano-card` (3) · `opcao-card` (2–4) · `linha-tabela` (+`linha-tabela-sub`) · `check-item` ·
 `cross-item` · `passo` (3) · `contato` (4).
 
 Marcador condicional que não se aplica recebe **string vazia**, nunca o texto do
 marcador.
+
+## A seção de formatos
+
+Existe quando `implantacao.opcoes` existe: a mesma entrega oferecida em recortes
+diferentes, um cartão por formato. Nome, valor, uma frase de resumo e os bullets
+do que entra — **nunca hora**, que é o que o auditor reprova fora da evolução.
+
+A tabela detalhada da seção 02 continua sendo a do formato `principal`, e é ela
+que a intro da seção de formatos deve mencionar, para o cliente saber a qual dos
+cartões o detalhe se refere.
+
+Não há selo de recomendado. `principal` é referência interna — de onde saem
+prazo, parcelamento e a tabela —, não destaque comercial no documento.
 
 ## A tabela de módulos
 
@@ -103,6 +118,7 @@ O `.price` divide o valor: `{{PRICE_VALOR}}` recebe a parte inteira sem `R$`
 | `.card` | 27,8pt + 14,88pt por linha + 15pt |
 | `.price` | 33pt + 42pt + 13,33pt por linha da nota + 16,3pt |
 | `.planos` | 96pt + 18pt |
+| `.opcoes` | 150pt + 18pt (com 4 bullets por cartão) |
 | `tr` da tabela | 27,7pt (41,9pt com sub-nota) |
 | `.two` | a maior das colunas |
 

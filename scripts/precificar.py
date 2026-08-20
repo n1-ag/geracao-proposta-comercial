@@ -742,6 +742,72 @@ def ler_valor(texto: str) -> Decimal:
         raise ValueError(f"não entendi o valor: {texto}") from None
 
 
+def precificar_opcoes(dados: Dados, escopo: dict) -> tuple[dict, list]:
+    """Precifica cada formato da proposta. Devolve (principal, todas).
+
+    Uma proposta pode ser enviada em vários formatos — "só a migração dos dados,
+    outro com migração e desenvolvimento, outro completo". Era promessa de
+    reunião que a ferramenta não sabia cumprir: um escopo, um preço.
+
+    Isto sai barato porque `precificar_implantacao` é função pura de
+    (dados, escopo): precificar três formatos é chamá-la três vezes, cada uma
+    com a lista de itens daquele formato. Nada de terceiro modelo — as opções
+    vivem dentro da implantação, e a marcada como `principal` preenche os campos
+    de sempre, então prazo, parcelamento e tabela detalhada continuam saindo de
+    onde sempre saíram.
+    """
+    opcoes = escopo.get("opcoes") or []
+    if not opcoes:
+        return None, []
+
+    principais = [o for o in opcoes if o.get("principal")]
+    if len(principais) != 1:
+        raise SystemExit(
+            f"erro: exatamente uma opção precisa de `principal: true` "
+            f"(encontrei {len(principais)} em {len(opcoes)} opções). É dela que "
+            f"saem prazo, parcelamento e a tabela detalhada do documento."
+        )
+
+    calculadas, resumo = [], []
+    for o in opcoes:
+        oid = (o.get("id") or "").strip()
+        if not oid or not o.get("nome"):
+            raise SystemExit("erro: toda opção precisa de `id` e `nome`")
+
+        # O escopo da opção é o da proposta com os itens dela. Plataforma,
+        # natureza e prazo são da proposta inteira, não do formato.
+        sub = {**escopo, "itens": o.get("itens") or [],
+               "itens_fora_catalogo": o.get("itens_fora_catalogo") or []}
+        # O que um formato pode redefinir. "Migração + desenvolvimento, sem a
+        # parte de design" é exatamente `design_fornecido_pelo_cliente`: o
+        # abatimento de design já existe e é a forma certa de dizer isso.
+        for campo in ("valor_base_override", "design_fornecido_pelo_cliente"):
+            if campo in o:
+                sub[campo] = o[campo]
+
+        calc = precificar_implantacao(
+            dados, sub,
+            valor_fechado=o.get("valor_fixo"),
+            motivo_fechado=f"valor de pacote do formato «{o['nome']}»",
+        )
+        calculadas.append((o, calc))
+        resumo.append({
+            "id": oid,
+            "nome": o["nome"],
+            "resumo": (o.get("resumo") or "").strip(),
+            "principal": bool(o.get("principal")),
+            "total": calc["total"], "total_fmt": calc["total_fmt"],
+            # Os bullets do cartão. Sem hora: `auditar.py numeros` só autoriza
+            # hora vinda da evolução, e com razão — o cliente compra entregas.
+            "inclui": [l["rotulo_exibido"] for l in calc["linhas"]]
+                      + [l["nome"] for l in calc["linhas_fora_catalogo"]],
+        })
+
+    principal = next(c for o, c in calculadas if o.get("principal"))
+    principal["opcoes"] = resumo
+    return principal, resumo
+
+
 def montar_orcamento(dados: Dados, escopo: dict, ficha: dict, hoje: date,
                      valor_fechado=None, motivo_fechado: str = "") -> dict:
     modelo = escopo.get("modelo_principal", "implantacao")
@@ -779,7 +845,9 @@ def montar_orcamento(dados: Dados, escopo: dict, ficha: dict, hoje: date,
     }
 
     if modelo == "implantacao":
-        imp = precificar_implantacao(dados, escopo, valor_fechado, motivo_fechado)
+        imp, _opcoes = precificar_opcoes(dados, escopo)
+        if imp is None:
+            imp = precificar_implantacao(dados, escopo, valor_fechado, motivo_fechado)
         orc["implantacao"] = imp
         orc["alertas"] += imp.pop("alertas")
         # Regra C: a alternativa em fee mensal acompanha toda implantação.

@@ -84,6 +84,32 @@ def _valor_fixo(bruto: dict, item: dict) -> dict:
     return {"valor_fixo": valor}
 
 
+def _validar_opcoes(opcoes: list, cat: dict, escopo: dict) -> list:
+    """Só o preço de pacote é editável pela tela; o resto do formato é do agente."""
+    atuais = {o.get("id"): o for o in (escopo.get("opcoes") or [])}
+    saida = []
+    for bruto in opcoes:
+        oid = (bruto.get("id") or "").strip()
+        base = dict(atuais.get(oid) or {})
+        if not base:
+            raise erro_400("opcao_desconhecida", f"não achei o formato '{oid}'")
+        if "valor_fixo" in bruto:
+            v = bruto.get("valor_fixo")
+            if v in (None, ""):
+                base.pop("valor_fixo", None)
+            else:
+                import sys as _sys
+                _sys.path.insert(0, str(cfg.SCRIPTS))
+                from precificar import ler_valor
+                try:
+                    base["valor_fixo"] = float(ler_valor(v))
+                except (ValueError, TypeError):
+                    raise erro_400("valor_invalido",
+                                   f"não entendi o valor do formato '{base.get('nome')}'") from None
+        saida.append(base)
+    return saida
+
+
 def _validar(itens: list, cat: dict) -> list:
     limpos = []
     for bruto in itens:
@@ -266,6 +292,13 @@ def editar_escopo(req, pid):
     depois = _validar(corpo.get("itens") or [], cat)
 
     escopo["itens"] = depois
+
+    # Os formatos da proposta ficam onde estão. `_validar` monta o item do zero
+    # a partir de uma lista fixa de campos, e foi assim que um clique em
+    # Recalcular já apagou horas fixadas e itens inclusos — aqui apagaria as três
+    # opções inteiras, com os preços de pacote negociados dentro.
+    if "opcoes" in corpo:
+        escopo["opcoes"] = _validar_opcoes(corpo.get("opcoes") or [], cat, escopo)
 
     # Cabeçalho do escopo: a plataforma decide o valor base, e o valor base pode
     # ser substituído. Num projeto pontual — uma correção, uma lista de tarefas —

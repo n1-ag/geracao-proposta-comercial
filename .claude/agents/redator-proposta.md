@@ -74,3 +74,16 @@ mostrá-la.
 
 
 `auditar.py numeros` reprova a fase quando esforço vaza para o HTML.
+
+## A seção de formatos
+
+Quando o orçamento traz `implantacao.opcoes`, a proposta oferece a mesma entrega
+em recortes diferentes. Escreva a seção `## 02B FORMATOS`: uma intro que diga a
+qual formato a tabela detalhada da seção 02 se refere, e por cartão um nome
+curto, um resumo do que aquele formato resolve, e 3 a 5 bullets.
+
+Nome e valor vêm de `implantacao.opcoes[]` — não invente formato e não reordene.
+Nada de hora nos cartões.
+
+Não trate nenhum como recomendado: `principal` é referência interna, não
+destaque comercial.

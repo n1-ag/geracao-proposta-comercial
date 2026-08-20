@@ -1410,3 +1410,59 @@ body.pagina-login {
   font-size: 13px;
 }
 .cabecalho-escopo .campo-dica { display: block; margin-top: 5px; max-width: 340px; }
+
+/* ------------------------------------------- contexto e formatos ---------- */
+
+/* O briefing chega inteiro nesta tela; este bloco mostra o que o validador
+   precisa ler antes de decidir, em vez de mandá-lo abrir outro arquivo. */
+.contexto summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.contexto summary::-webkit-details-marker { display: none; }
+.contexto summary::before {
+  content: "▸";
+  color: var(--texto-3);
+  font-size: 11px;
+  transition: transform .15s;
+}
+.contexto[open] summary::before { transform: rotate(90deg); }
+
+.contexto-corpo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px 26px;
+  margin-top: 14px;
+}
+.contexto-corpo section > h3 {
+  margin: 0 0 6px;
+  font-family: var(--f-display);
+  font-size: 10.5px;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ciano);
+}
+.contexto-corpo p,
+.contexto-corpo li { font-size: 13px; line-height: 1.55; color: var(--texto-2); }
+.contexto-corpo ul { margin: 0; padding-left: 17px; }
+.contexto-corpo > section > :last-child { margin-bottom: 0; }
+
+.op-valor {
+  width: 132px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--sup-4);
+  background: var(--sup-1);
+  color: var(--texto);
+  font: inherit;
+  font-size: 13px;
+  text-align: right;
+}
+.op-valor:focus {
+  outline: none;
+  border-color: var(--ciano-esc);
+  box-shadow: 0 0 0 3px rgba(60,203,218,.14);
+}
