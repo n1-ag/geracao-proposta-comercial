@@ -835,3 +835,31 @@ media: auditoria, benchmark de concorrentes e plano priorizado por impacto e esf
 alta: acima, com validação pelos dados de comportamento e árvore de navegação redesenhada."""
 descricao_proposta = "Auditoria de navegação com plano de ações priorizado por impacto e esforço."
 
+
+[[itens]]
+id = "correcao-defeito-componente"
+nome = "Correção de defeito em componente existente"
+categoria = "apoio"
+unidade = "correção"
+horas_baixa = [1, 2]
+horas_media = [3, 5]
+horas_alta = [6, 10]
+criterio_complexidade = """
+baixa: causa isolada dentro do próprio componente (ex.: fórmula, CSS, timing de animação), sem depender de dado externo — corrige-se lendo e ajustando o código já existente;
+media: o valor ou comportamento errado depende de como o componente lê ou calcula um dado (ex.: contador, card, banner puxando de API/CMS/estado interno do site), exigindo rastrear a origem do dado antes de corrigir;
+alta: defeito se repete em mais de um componente, depende de integração externa (ERP, CRM, API de terceiro) cujo contrato mudou ou falhou, ou é intermitente e exige reproduzir o erro antes de saber a causa"""
+descricao_proposta = "Correção do funcionamento de um componente já existente no site que estava apresentando comportamento incorreto."
+
+[[itens]]
+id = "ajuste-pontual-navegacao"
+nome = "Ajuste pontual de navegação em site existente"
+categoria = "apoio"
+unidade = "ajuste"
+horas_baixa = [1, 2]
+horas_media = [2, 4]
+horas_alta = [4, 6]
+criterio_complexidade = """
+baixa: inclusão ou alteração de um link em um único elemento de navegação (ex.: apenas o menu principal), sem ícone, destaque visual ou tradução, em site com estrutura de menu simples;
+media: o mesmo ajuste replicado em mais de um elemento de navegação (ex.: menu principal e rodapé), ou dentro de um menu com submenus, sem exigir componente visual novo;
+alta: ajuste em múltiplos elementos de navegação com variação por idioma/moeda, comportamento próprio no menu mobile, ou que dependa de aprovação de UX por afetar a estrutura de um mega menu já carregado"""
+descricao_proposta = "Inclusão do link da página de Cases nos menus e demais pontos de navegação do site."
