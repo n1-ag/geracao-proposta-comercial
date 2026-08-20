@@ -26,7 +26,7 @@ Lê os arquivos de `templates/`, substitui marcadores e concatena.
 | 02b | `02b-opcoes.html` **se** `implantacao.opcoes` | — |
 | 03 | `03-conducao.html` (fluxo de projeto) | `03-conducao.html` (fluxo de demanda) |
 | 04 | `04-investimento-implantacao.html` | `04-investimento-evolucao.html` |
-| 04b | `04b-alternativa-evolucao.html` **se** `evolucao.aplicavel` | — |
+| 04b | **se** `evolucao.aplicavel`: `04b-alternativa-planos.html` quando `evolucao.origem == "contratada"`, senão `04b-alternativa-evolucao.html` | — |
 | 05 | `05-premissas.html` | `05-premissas.html` |
 | fim | `06-fechamento.html` | `06-fechamento.html` |
 
@@ -44,14 +44,17 @@ Capa: `{{CAPA_REF}}` `{{CAPA_TITULO_HTML}}` `{{CAPA_SUBTITULO}}` `{{FACTBAR_ITEN
 02b: `{{OPCOES_INTRO}}` `{{OPCOES_CARDS}}` `{{OPCOES_NOTA}}`
 03: `{{CONDUCAO_INTRO}}` `{{FLOW_ETAPAS}}` `{{CONDUCAO_CARD_DESTAQUE}}` `{{CONDUCAO_DUAS_COLUNAS}}` `{{CONDUCAO_CARD_RODAPE}}`
 04: `{{PRICE_TAG}}` `{{PRICE_VALOR}}` `{{PRICE_CENTAVOS}}` `{{PRICE_SUFIXO}}` `{{PRICE_META_ITENS}}` `{{PRICE_NOTA}}` `{{PLANOS}}` `{{CONDICOES_TITULO}}` `{{TABELA_CONDICOES_LINHAS}}` `{{INCLUI_TITULO}}` `{{INCLUI_ITENS}}` `{{COMPLEMENTARES_TITULO}}` `{{COMPLEMENTARES_CARD}}` `{{INVEST_RODAPE_NOTA}}` `{{VALIDADE_NOTA}}`
-04b: `{{ALT_INTRO}}` `{{ALT_TAG}}` `{{ALT_PRICE_VALOR}}` `{{ALT_PRICE_CENTAVOS}}` `{{ALT_META_ITENS}}` `{{ALT_PRICE_NOTA}}` `{{ALT_TABELA_TITULO}}` `{{ALT_TABELA_LINHAS}}` `{{ALT_CARD}}`
+04b (`alternativa_convertida`): `{{ALT_INTRO}}` `{{ALT_TAG}}` `{{ALT_PRICE_VALOR}}` `{{ALT_PRICE_CENTAVOS}}` `{{ALT_META_ITENS}}` `{{ALT_PRICE_NOTA}}` `{{ALT_TABELA_TITULO}}` `{{ALT_TABELA_LINHAS}}` `{{ALT_CARD}}`
+04b (`contratada`, `04b-alternativa-planos.html`): `{{ALT_INTRO}}` `{{ALT_PLANOS}}` `{{ALT_PRICE_NOTA}}` `{{ALT_TABELA_TITULO}}` `{{ALT_TABELA_LINHAS}}` `{{ALT_CARD}}`
 05: `{{PREMISSAS_TITULO}}` `{{PREMISSAS_ITENS}}` `{{TRANSICAO_BLOCO}}` `{{JANELA_CARD}}` `{{NAO_CONTEMPLADO_TITULO}}` `{{NAO_CONTEMPLADO_ITENS}}`
 Fim: `{{CLOSE_HEADLINE}}` `{{CLOSE_TEXTO}}` `{{PASSOS}}` `{{CONTATOS}}` `{{CLOSE_BARRA}}`
 
 Blocos repetíveis: `factbar-item` (2–4) · `stat` (3–4) · `bullet-lead` /
 `bullet` · `frente` (até 5) · `flow-etapa` (4–5) · `card` · `price-meta` (1–3) ·
-`plano-card` (3) · `opcao-card` (2–4) · `linha-tabela` (+`linha-tabela-sub`) · `check-item` ·
-`cross-item` · `passo` (3) · `contato` (4).
+`plano-card` (3 — usado em `04-investimento-evolucao.html` e, quando
+`evolucao.origem == "contratada"` dentro de uma implantação, também em
+`04b-alternativa-planos.html`) · `opcao-card` (2–4) · `linha-tabela`
+(+`linha-tabela-sub`) · `check-item` · `cross-item` · `passo` (3) · `contato` (4).
 
 Marcador condicional que não se aplica recebe **string vazia**, nunca o texto do
 marcador.
@@ -68,6 +71,61 @@ cartões o detalhe se refere.
 
 Não há selo de recomendado. `principal` é referência interna — de onde saem
 prazo, parcelamento e a tabela —, não destaque comercial no documento.
+
+## A seção 04b quando é pacote contratado
+
+`evolucao.origem == "contratada"` dentro de uma proposta de implantação →
+`04b-alternativa-planos.html`. Não existe exemplo desta combinação em proposta
+antiga — a forma, literal, para copiar direto (com os valores de exemplo
+trocados pelos tokens reais):
+
+```html
+    <p class="mb-19">{{ALT_INTRO}}</p>
+
+    <div class="planos">
+      <div class="plano">
+        <span class="plano-selo">Plano recomendado</span>
+        <span class="plano-horas">10 horas</span>
+        <span class="plano-valor">R$ 2.400,00</span>
+        <span class="plano-hora"></span>
+      </div>
+      <div class="plano rec">
+        <span class="plano-selo">Plano recomendado</span>
+        <span class="plano-horas">20 horas</span>
+        <span class="plano-valor">R$ 4.200,00</span>
+        <span class="plano-hora"></span>
+      </div>
+      <div class="plano">
+        <span class="plano-selo">Plano recomendado</span>
+        <span class="plano-horas">30 horas</span>
+        <span class="plano-valor">R$ 6.000,00</span>
+        <span class="plano-hora"></span>
+      </div>
+    </div>
+
+    <p class="price-nota">{{ALT_PRICE_NOTA}}</p>
+
+    <h3>{{ALT_TABELA_TITULO}}</h3>
+    <table>
+{{ALT_TABELA_LINHAS}}
+    </table>
+
+{{ALT_CARD}}
+```
+
+Pontos que não são óbvios:
+
+- **`.plano-hora` fica vazio** (`<span class="plano-hora"></span>`, sem
+  conteúdo) nos três cartões. É o mesmo motivo de sempre: o valor da hora
+  técnica não aparece em proposta nenhuma, nem aqui, e escrever
+  "R$ 210,00 / hora" dentro do span reprova em `auditar.py numeros` como dado
+  interno vazado.
+- O card `rec` (`class="plano rec"`) é o que `evolucao.opcoes[].recomendado`
+  marca — o mesmo pacote que a reunião pediu, não o mais caro nem o do meio por
+  padrão.
+- `{{ALT_TABELA_LINHAS}}` aqui é a tabela do que entra no acompanhamento
+  (fidelidade, faturamento, horas excedentes) — nunca uma comparação com
+  `implantacao.total_fmt`. Ver a regra em `04-narrativa.contract.md §04B`.
 
 ## A tabela de módulos
 

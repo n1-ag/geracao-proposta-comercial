@@ -244,6 +244,32 @@ def converter(dados: Dados, valor_implantacao: Decimal) -> dict:
     }
 
 
+def evolucao_contratada(dados: Dados, horas_mes: int, fidelidade_meses: int) -> dict:
+    """O fee mensal que o cliente contrata, no pacote que foi combinado.
+
+    Não é a conversão da regra C: aqui ninguém deriva horas de um valor de
+    implantação — o pacote é o que se acordou, e o preço da hora sai da tabela de
+    faixas. Serve aos dois casos em que isso acontece: a proposta que é só fee
+    mensal, e a implantação que vende acompanhamento junto (`evolucao_solicitada`).
+    """
+    pacotes = opcoes_pacote(dados, int(horas_mes))
+    principal = next(o for o in pacotes["opcoes"] if o["recomendado"])
+    cond = dados.condicoes["evolucao"]
+    return {
+        "aplicavel": True, "origem": "contratada",
+        **{k: v for k, v in principal.items() if k != "recomendado"},
+        "pacote_horas": principal["horas"],
+        "pacote_horas_fmt": f"{principal['horas']} horas",
+        "opcoes": pacotes["opcoes"],
+        "horas_recomendadas_calculadas": pacotes["horas_recomendadas_calculadas"],
+        "hora_excedente": num(cond["hora_excedente"]),
+        "hora_excedente_fmt": brl(D(cond["hora_excedente"])),
+        "acumulo_saldo_pct": cond["acumulo_saldo_pct"],
+        "fidelidade_meses": fidelidade_meses,
+        "faturamento": cond["faturamento"],
+    }
+
+
 # -----------------------------------------------------------------------------
 # A) Implantação
 # -----------------------------------------------------------------------------
@@ -850,18 +876,42 @@ def montar_orcamento(dados: Dados, escopo: dict, ficha: dict, hoje: date,
             imp = precificar_implantacao(dados, escopo, valor_fechado, motivo_fechado)
         orc["implantacao"] = imp
         orc["alertas"] += imp.pop("alertas")
-        # Regra C: a alternativa em fee mensal acompanha toda implantação.
-        ev = converter(dados, D(str(imp["total"])))
-        ev["fidelidade_meses"] = dados.condicoes["evolucao"]["fidelidade_meses_conversao"]
-        orc["evolucao"] = ev
-        orc["alertas"] += [{"codigo": c, "severidade": "media", "mensagem": c} for c in ev.pop("alertas")]
+
+        # Regra C: a alternativa em fee mensal acompanha toda implantação — a
+        # menos que a reunião tenha contratado um pacote. São coisas diferentes,
+        # e a diferença é o que o cliente lê: a conversão é uma FORMA DE PAGAR o
+        # mesmo projeto (por isso 12 meses de fidelidade e um valor derivado do
+        # total); o pacote contratado é trabalho A MAIS, que começa depois do
+        # go-live. Derivar 1,3× num acompanhamento que já tem horas acordadas
+        # imprimiria um valor que ninguém combinou.
+        solicitada = escopo.get("evolucao_solicitada") or {}
+        cond_ev = dados.condicoes["evolucao"]
+        if solicitada.get("ativa") and solicitada.get("horas_mes"):
+            orc["evolucao"] = evolucao_contratada(
+                dados, int(solicitada["horas_mes"]), cond_ev["fidelidade_meses_padrao"])
+            origem_mensal = "dados/precos.toml §evolucao.faixas"
+            orc["alertas"].append({
+                "codigo": "EVOLUCAO_CONTRATADA_EM_IMPLANTACAO",
+                "severidade": "media",
+                "mensagem": (
+                    f"O fee mensal desta proposta é o pacote contratado de "
+                    f"{int(solicitada['horas_mes'])} h/mês, não a alternativa "
+                    f"convertida da regra C. Confira se é isso que foi combinado."),
+            })
+        else:
+            ev = converter(dados, D(str(imp["total"])))
+            ev["fidelidade_meses"] = cond_ev["fidelidade_meses_conversao"]
+            orc["evolucao"] = ev
+            origem_mensal = "dados/precos.toml §conversao + §evolucao.faixas"
+            orc["alertas"] += [{"codigo": c, "severidade": "media", "mensagem": c}
+                               for c in ev.pop("alertas")]
+
         orc["rastreabilidade"] = [
             {"campo": "implantacao.valor_base",
              "origem": f"dados/precos.toml §implantacao.plataformas.{imp['plataforma']}.valor_base"},
             {"campo": "implantacao.subtotais.adicionais",
              "origem": "dados/catalogo-modulos.toml × precos.toml §implantacao.valor_hora_adicional"},
-            {"campo": "evolucao.valor_mensal",
-             "origem": "dados/precos.toml §conversao + §evolucao.faixas"},
+            {"campo": "evolucao.valor_mensal", "origem": origem_mensal},
         ]
         if escopo.get("prazo_semanas"):
             ov = escopo["prazo_semanas"]
@@ -874,23 +924,9 @@ def montar_orcamento(dados: Dados, escopo: dict, ficha: dict, hoje: date,
         if not rec:
             raise SystemExit("erro: proposta de evolução exige `evolucao_solicitada.horas_mes` "
                              "no 02-escopo.json (o pacote recomendado).")
-        pacotes = opcoes_pacote(dados, int(rec))
-        principal = next(o for o in pacotes["opcoes"] if o["recomendado"])
-        cond = dados.condicoes["evolucao"]
         orc["implantacao"] = {"aplicavel": False}
-        orc["evolucao"] = {
-            "aplicavel": True, "origem": "contratada",
-            **{k: v for k, v in principal.items() if k != "recomendado"},
-            "pacote_horas": principal["horas"],
-            "pacote_horas_fmt": f"{principal['horas']} horas",
-            "opcoes": pacotes["opcoes"],
-            "horas_recomendadas_calculadas": pacotes["horas_recomendadas_calculadas"],
-            "hora_excedente": num(cond["hora_excedente"]),
-            "hora_excedente_fmt": brl(D(cond["hora_excedente"])),
-            "acumulo_saldo_pct": cond["acumulo_saldo_pct"],
-            "fidelidade_meses": cond["fidelidade_meses_padrao"],
-            "faturamento": cond["faturamento"],
-        }
+        orc["evolucao"] = evolucao_contratada(
+            dados, int(rec), dados.condicoes["evolucao"]["fidelidade_meses_padrao"])
         orc["rastreabilidade"] = [
             {"campo": "evolucao.valor_hora", "origem": "dados/precos.toml §evolucao.faixas"},
             {"campo": "evolucao.opcoes", "origem": "dados/precos.toml §evolucao.pacotes_sugeridos"},

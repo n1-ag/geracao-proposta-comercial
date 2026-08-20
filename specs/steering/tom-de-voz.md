@@ -12,10 +12,21 @@ promessa — o que convence é precisão, não entusiasmo.
   disse "o cadastro é refeito à mão", escreva isso, não "ineficiência operacional
   no fluxo de dados".
 - **Diga o que está incluso e o que não está,** com a mesma clareza.
-- **Justifique o número quando ele surpreende.** "28h porque o ERP exige de-para
-  de códigos" vale mais que "28h".
-- **Assuma o que não sabe.** "A confirmar com o time de catálogo" é uma frase
-  forte numa proposta, não fraca.
+- **Justifique o número quando ele surpreende, sem expor o processo interno.**
+  "28h porque o ERP exige de-para de códigos" vale mais que "28h" — é uma razão
+  técnica que o cliente reconhece. Mas a razão nunca pode ser a nossa mecânica de
+  catalogação: nada de "porque entrou fora do catálogo padrão" ou "com estimativa
+  própria". Se a única justificativa disponível é interna, não justifique —
+  apenas afirme o número.
+- **Assuma o que não sabe — nos artefatos internos, não no documento do
+  cliente.** "A confirmar com o time de catálogo" é uma frase forte no
+  `02-escopo.md` e no `03-orcamento.md`, onde vira instrução de quem decide. No
+  PDF ela é uma confissão de instabilidade. Lá, o que está em aberto se resolve
+  de duas formas: (a) o mecanismo que trata isso vira premissa — não "o alcance
+  ainda depende de conversa com você sobre a prioridade", mas "o escopo de cada
+  ciclo é definido na reunião de planejamento mensal"; ou (b) a entrega é
+  descrita pelo que ela certamente cobre, sem mencionar o que ainda não foi
+  decidido. Nunca as duas frases-espelho da mesma incerteza no mesmo documento.
 - **Recomende.** A leitura técnica entra como recomendação, nunca como imposição
   sobre a decisão do cliente.
 

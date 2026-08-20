@@ -31,7 +31,15 @@ O que a máquina não pega:
 7. A validade aparece coerente nas duas formas (`30/09/2026` e "30 de setembro
    de 2026")?
 8. O escopo descrito na página 02 bate com o que está sendo cobrado na 04?
-9. As lacunas relevantes estão declaradas, ou alguma sumiu no caminho?
+9. **Vazou alguma lacuna, observação de auditoria ou justificativa de
+   catalogação para o texto do cliente?** Procure o sintoma: menção à nossa
+   mecânica interna ("entrou fora do catálogo padrão", "estimativa própria") ou
+   confissão de indefinição em voz própria ("ainda não foi definido",
+   "ainda não foi confirmado", "a confirmar", "ainda depende de conversa"). O que
+   afeta o valor precisa estar coberto por uma premissa redigida como condição —
+   não pela frase de dúvida. Se sumiu por completo sem virar premissa nem
+   entrega afirmativa, também é falha: a proteção contra escopo crescendo
+   precisa continuar em algum lugar do documento.
 
 ## Seções obrigatórias de `06-revisao.md`
 

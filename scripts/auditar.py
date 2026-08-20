@@ -18,6 +18,7 @@ import re
 import subprocess
 import sys
 import tomllib
+from datetime import date
 from decimal import Decimal as D
 from pathlib import Path
 
@@ -147,6 +148,42 @@ def roda_golden(dados: P.Dados, r: Relatorio):
             r.falha(f"{nome}: esperava alerta {c['espera_alerta']}")
         else:
             r.passou()
+
+    for c in casos.get("roteamento_evolucao", []):
+        escopo = {
+            "modelo_principal": "implantacao", "plataforma": "template-html",
+            "valor_base_override": 0, "design_fornecido_pelo_cliente": False,
+            "itens": [],
+            "evolucao_solicitada": {"ativa": c["evolucao_ativa"],
+                                    "horas_mes": c.get("horas_mes")},
+        }
+        orc = P.montar_orcamento(dados, escopo, {}, date(2026, 1, 1),
+                                 valor_fechado=c["valor_fechado"],
+                                 motivo_fechado="caso golden")
+        ev = orc["evolucao"]
+        nome = f"roteamento/{c['id']}"
+        for campo, esperado, obtido in (
+            ("origem", c["espera_origem"], ev["origem"]),
+            ("horas", c["espera_horas"], ev["pacote_horas"]),
+            ("valor_hora", c["espera_valor_hora"], ev["valor_hora"]),
+            ("mensal", c["espera_mensal"], ev["valor_mensal"]),
+            ("fidelidade", c["espera_fidelidade"], ev["fidelidade_meses"]),
+        ):
+            iguais = (esperado == obtido if isinstance(esperado, str)
+                      else float(esperado) == float(obtido))
+            if not iguais:
+                r.falha(f"{nome}: {campo}={obtido}, esperado {esperado}")
+                break
+        else:
+            # O valor do outro caminho não pode vazar para este.
+            if "recusa_mensal" in c and float(ev["valor_mensal"]) == float(c["recusa_mensal"]):
+                r.falha(f"{nome}: saiu {ev['valor_mensal']}, que é o valor do "
+                        f"caminho errado (a conversão da regra C)")
+            elif ("espera_alerta" in c
+                  and c["espera_alerta"] not in [a["codigo"] for a in orc["alertas"]]):
+                r.falha(f"{nome}: esperava alerta {c['espera_alerta']}")
+            else:
+                r.passou()
 
     for c in casos.get("opcoes", []):
         got = P.opcoes_pacote(dados, c["horas_recomendadas"])
@@ -336,6 +373,27 @@ ROTULOS_PROIBIDOS = (
     ("esforço adicional", "o esforço não é o que o cliente compra"),
 )
 
+# O redator lê `02-escopo.md` e `03-orcamento.md` inteiros — documentos internos,
+# cheios de lacunas e justificativas já redigidas em prosa — e sem uma checagem
+# mecânica, a frase pronta do insumo vaza direto para o texto do cliente: "ainda
+# não foi definido com você", "entrou fora do catálogo padrão, com estimativa
+# própria". Isso não é estilo — é a mecânica interna e a insegurança do processo
+# expostas a quem está comprando. A lista é curta e específica de propósito: cada
+# frase só aparece em contexto de confissão de indefinição ou de auditoria de
+# catalogação, não em prosa comercial legítima.
+FRASES_INSEGURANCA_PROIBIDAS = (
+    ("ainda não foi", "descreva o que a entrega cobre, não o que falta decidir"),
+    ("ainda não está", "descreva o que a entrega cobre, não o que falta decidir"),
+    ("não foi definido", "vire premissa (o mecanismo que resolve), não confissão"),
+    ("não foi confirmado", "vire premissa (o mecanismo que resolve), não confissão"),
+    ("não foi levantado", "vire premissa (o mecanismo que resolve), não confissão"),
+    ("a confirmar", "isso é nota de auditoria interna, não texto de cliente"),
+    ("a definir", "isso é nota de auditoria interna, não texto de cliente"),
+    ("ainda depende de", "descreva o mecanismo que decide, não a pendência"),
+    ("fora do catálogo padrão", "mecânica interna de catalogação não vai ao cliente"),
+    ("estimativa própria", "mecânica interna de catalogação não vai ao cliente"),
+)
+
 
 def _subarvore(orc: dict, chave: str) -> dict:
     return orc.get(chave) or {}
@@ -512,6 +570,19 @@ def cmd_numeros(args) -> int:
         for rot, por in achados_rotulo:
             r.falha(f"rótulo proibido no HTML: «{rot}» — {por}. "
                     f"Tire a linha ou o cartão inteiro; não basta trocar o número.")
+    else:
+        r.passou()
+
+    # A frase que expõe indefinição interna ou mecânica de catalogação ao
+    # cliente. Ver `FRASES_INSEGURANCA_PROIBIDAS`: veio de ler o PDF da Reed7 e
+    # achar "por isso entrou fora do catálogo padrão, com estimativa própria"
+    # numa descrição de entrega.
+    achados_inseguranca = [(f, por) for f, por in FRASES_INSEGURANCA_PROIBIDAS if f in baixo]
+    if achados_inseguranca:
+        for f, por in achados_inseguranca:
+            r.falha(f"frase de insegurança no HTML: «{f}» — {por}. "
+                    f"Reescreva a partir do que está decidido, ou vire premissa "
+                    f"na seção 05 se afeta o valor.")
     else:
         r.passou()
 

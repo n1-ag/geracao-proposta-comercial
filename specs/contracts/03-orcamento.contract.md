@@ -68,6 +68,30 @@ contrato de 12 meses:
 **Caso de referência:** R$ 50.000 → R$ 65.000/ano → R$ 5.416,67/mês → faixa
 20–29 @ R$ 210 → 25,79h → **26h × 210 = R$ 5.460,00/mês**.
 
+#### Quando a implantação já vende acompanhamento
+
+A conversão é o **padrão**, não a única saída. Se o `02-escopo.json` trouxer
+`evolucao_solicitada.ativa = true` com `horas_mes`, o bloco de fee mensal deixa
+de ser a alternativa convertida e passa a ser o **pacote contratado**: horas
+combinadas na reunião, preço direto da tabela de faixas, `origem: "contratada"`,
+fidelidade `fidelidade_meses_padrao` (6 meses, não os 12 da conversão).
+
+São produtos diferentes, e a diferença é o que o cliente lê:
+
+| | Alternativa convertida | Pacote contratado |
+|---|---|---|
+| O que é | outra **forma de pagar** o mesmo projeto | trabalho **a mais**, depois do go-live |
+| De onde vem o valor | 1,3× o total da implantação | as horas acordadas × a faixa |
+| Fidelidade | 12 meses | 6 meses |
+| Convive com o projeto | não — é "em vez de" | sim — é "além de" |
+
+Emite `EVOLUCAO_CONTRATADA_EM_IMPLANTACAO` (severidade média) no checkpoint: a
+regra C não foi aplicada, e quem aprova precisa ver isso. Golden que trava a
+bifurcação: `roteamento_evolucao` em `casos-teste-precificacao.toml` — o mesmo
+projeto de R$ 36.000 dá **R$ 4.200,00/mês** (20h contratadas) ou
+**R$ 3.960,00/mês** (18h convertidas), e mandar o número do caminho errado é o
+erro que aquele par de casos existe para impedir.
+
 ### Três opções de pacote (fee mensal nativo)
 
 `pacotes_sugeridos` em `precos.toml` é a escada. O script escolhe o degrau mais

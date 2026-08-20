@@ -35,7 +35,8 @@ MODELO = "sonnet"
 
 TIPOS = {
     "valor_total", "valor_item", "horas_item", "item_incluso", "remover_item",
-    "acrescentar_item", "rotulo_item", "valor_base", "prazo", "texto_livre",
+    "acrescentar_item", "rotulo_item", "valor_base", "prazo", "evolucao_horas",
+    "texto_livre",
 }
 
 SISTEMA = """\
@@ -57,6 +58,7 @@ os campos do seu tipo:
 - `rotulo_item`      — muda o nome que o cliente lê. `{"alvo": 0, "rotulo":"..."}`
 - `valor_base`       — substitui o valor base da plataforma. `{"valor": 0}`
 - `prazo`            — `{"min": 10, "max": 12}`
+- `evolucao_horas`   — pacote mensal de acompanhamento contratado. `{"horas": 20}`
 - `texto_livre`      — o que não couber em nenhum tipo acima. `{"instrucao":"..."}`
 
 Regras:
@@ -327,6 +329,17 @@ def validar(brutas: list, escopo: dict, cat: dict | None = None) -> list:
                 saida.append(recusa(f"prazo inválido: {mn} a {mx} semanas"))
                 continue
             op["min"], op["max"] = mn, mx
+
+        if op["tipo"] == "evolucao_horas":
+            try:
+                horas = int(b.get("horas"))
+            except (TypeError, ValueError):
+                saida.append(recusa("não entendi o pacote de horas pedido"))
+                continue
+            if horas < 1:
+                saida.append(recusa("o pacote precisa de ao menos 1 hora"))
+                continue
+            op["horas"] = horas
 
         if op["tipo"] == "acrescentar_item":
             cx = (b.get("complexidade") or "").strip().lower() or None

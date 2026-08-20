@@ -147,6 +147,12 @@ def _aplicar_no_escopo(escopo: dict, op: dict) -> str:
         escopo["valor_base_override"] = op["valor"]
         return f"- **Valor base:** substituído por {_brl(op['valor'])}"
 
+    if tipo == "evolucao_horas":
+        horas = int(op["horas"])
+        escopo["evolucao_solicitada"] = {"ativa": True, "horas_mes": horas}
+        return (f"- **Acompanhamento:** pacote contratado de {horas} h/mês, "
+                f"no lugar da alternativa convertida")
+
     if tipo == "prazo":
         escopo["prazo_semanas"] = {
             "min": op["min"], "max": op["max"],

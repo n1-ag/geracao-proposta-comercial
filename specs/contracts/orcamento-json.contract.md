@@ -90,6 +90,12 @@ Quando `origem == "contratada"`, também `opcoes[]` — três pacotes, cada um c
 `horas`, `valor_hora(_fmt)`, `valor_mensal(_fmt)`, `valor_12m(_fmt)` e
 `recomendado`.
 
+`origem == "contratada"` **pode** coexistir com `implantacao.aplicavel = true`:
+é a implantação que vende acompanhamento junto, ligada por
+`evolucao_solicitada.ativa` no escopo. Nesse caso não há `calculo{}` — não houve
+conversão a memorizar — e `fidelidade_meses` é 6, não 12. Ver §C do
+`03-orcamento.contract.md`.
+
 Quando `origem == "alternativa_convertida"`, também `calculo{}` com a memória
 completa: `valor_referencia(_fmt)`, `multiplicador_anual`,
 `receita_anual_alvo(_fmt)`, `mensal_alvo(_fmt)`, `faixas_avaliadas[]` (cada uma

@@ -36,6 +36,25 @@ Quando nenhum texto daqui servir, o redator escreve — seguindo
 - Configurações de ERP, meios de pagamento, antifraude, integrações logísticas e
   cadastro de produtos permanecem sob a operação da `<cliente>`.
 
+## Quando algo ainda depende de decisão
+
+Textos para os casos mais comuns de lacuna que afeta o escopo ou o valor — a
+condição vira cláusula, nunca confissão de indefinição.
+
+- **Ferramenta de terceiro a escolher** (ex.: mapa de calor, heatmap, A/B test):
+  Instalamos e configuramos a ferramenta de `<categoria da ferramenta>`
+  escolhida em conjunto com a `<cliente>`. A leitura dos dados e a
+  transformação em backlog de ajustes entram na conversa de priorização de cada
+  ciclo.
+- **Alcance que depende de volume não levantado** (ex.: quantas páginas,
+  quantos itens): Revisamos `<o que será revisado>` dentro do pacote de horas
+  contratado, com o alcance de cada ciclo definido em conjunto conforme a
+  prioridade do momento.
+- **Diagnóstico ou ajuste sobre algo já existente**, sem módulo equivalente no
+  catálogo padrão (ex.: revisão de UX/UI, correção de comportamento): É
+  diagnóstico e ajuste sobre o que já está em operação — dimensionado à parte
+  para caber no formato de horas do pacote mensal.
+
 ## Não contemplado — comum a todas
 
 - Gestão de mídia paga, tráfego e growth — frente independente deste contrato.

@@ -687,6 +687,12 @@ def _bloco_pdf(ctx: dict, fases: list[str] | None = None) -> None:
                 "número que o orçamento já tenha (prazo, número de módulos), nunca hora "
                 "nem valor da hora.\n"
                 "- A cláusula de horas excedentes **fica**: é preço que o cliente paga.\n"
+                "- Frase de insegurança (\"ainda não foi definido\", \"a confirmar\", "
+                "\"fora do catálogo padrão\", \"estimativa própria\"...): reescreva a frase "
+                "descrevendo o que a entrega cobre. Se a incerteza afeta o valor ou o "
+                "escopo, mova-a para a seção de premissas como condição do projeto, no "
+                "padrão de `dados/biblioteca-textos.md` — nunca como confissão de que algo "
+                "não foi decidido.\n"
                 f"Tentativa {auditorias} de {cfg.MAX_RETRY_AUDITORIA}."
             )
             eventos.progresso(ctx["proposta_id"], "05",

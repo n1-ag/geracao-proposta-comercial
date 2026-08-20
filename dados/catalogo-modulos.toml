@@ -194,6 +194,21 @@ media: categorias e conteúdo gerenciável pelo CMS;
 alta: busca interna, votação de utilidade e integração com o atendimento."""
 descricao_proposta = "Central de ajuda com perguntas frequentes organizadas por tema."
 
+[[itens]]
+id = "relayout-pagina"
+nome = "Relayout de página"
+categoria = "conteudo"
+unidade = "página"
+horas_baixa = [6, 8]
+horas_media = [10, 14]
+horas_alta = [16, 22]
+criterio_complexidade = """
+Redesenho de uma página que já existe, a partir do que o estudo de navegação apontou. Diferente das páginas do escopo padrão, que são desenhadas do zero: aqui há conteúdo, tráfego e SEO em produção para preservar.
+baixa: reorganização dos blocos existentes, sem componente novo;
+media: hierarquia visual nova e componentes existentes ajustados;
+alta: redesenho estrutural, componentes novos e versão mobile própria."""
+descricao_proposta = "Redesenho de uma página existente, orientado pelo estudo de navegação."
+
 # =============================================================================
 # COMPONENTES E EXPERIÊNCIA
 # =============================================================================
@@ -789,3 +804,34 @@ baixa: virada de DNS com checklist e monitoramento no mesmo dia;
 media: janela acompanhada, plano de rollback e ajustes na primeira semana;
 alta: virada faseada, migração de domínio e acompanhamento estendido."""
 descricao_proposta = "Condução da virada para produção, com checklist, monitoramento e ajustes."
+
+[[itens]]
+id = "analise-mapa-calor"
+nome = "Análise de mapa de calor"
+categoria = "apoio"
+unidade = "estudo"
+horas_baixa = [10, 14]
+horas_media = [18, 24]
+horas_alta = [30, 40]
+criterio_complexidade = """
+Cobre instrumentar, coletar e ler o comportamento real de quem usa o site — mapa de calor, mapa de cliques, rolagem e gravação de sessão. Não inclui executar as correções que o estudo apontar: isso é relayout, ou entra no pacote de evolução.
+baixa: ferramenta já instalada pelo cliente, leitura de 2 a 3 páginas-chave;
+media: instrumentação da ferramenta, janela de coleta definida e leitura das páginas do funil;
+alta: eventos personalizados, segmentação por dispositivo e origem, gravação de sessão e leitura do funil inteiro."""
+descricao_proposta = "Instrumentação e leitura de mapa de calor, rolagem e gravação de sessão."
+
+[[itens]]
+id = "estudo-navegacao-plano-acoes"
+nome = "Estudo de navegação e plano de ações"
+categoria = "apoio"
+unidade = "estudo"
+horas_baixa = [10, 14]
+horas_media = [18, 26]
+horas_alta = [30, 42]
+criterio_complexidade = """
+Auditoria da navegação e da usabilidade que termina num plano de ações priorizado — o que corrigir, em que ordem e por quê. É o documento que orienta o relayout ou as sprints de evolução; a execução é cotada à parte.
+baixa: auditoria heurística das páginas do funil e plano com prioridades;
+media: auditoria, benchmark de concorrentes e plano priorizado por impacto e esforço, com wireframes de referência;
+alta: acima, com validação pelos dados de comportamento e árvore de navegação redesenhada."""
+descricao_proposta = "Auditoria de navegação com plano de ações priorizado por impacto e esforço."
+

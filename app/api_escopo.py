@@ -325,6 +325,30 @@ def editar_escopo(req, pid):
             except (ValueError, TypeError):
                 raise erro_400("valor_invalido",
                                f"não entendi o valor base: {bruta!r}") from None
+
+    # O pacote de acompanhamento. Vazio devolve a proposta ao padrão: o fee
+    # mensal volta a ser a alternativa convertida do valor do projeto.
+    if "evolucao_horas_mes" in corpo:
+        bruta = corpo.get("evolucao_horas_mes")
+        if bruta in (None, ""):
+            # Numa proposta que é só fee mensal o pacote é o produto: sem ele o
+            # `precificar.py` aborta e a proposta fica sem orçamento nenhum.
+            if escopo.get("modelo_principal") == "evolucao":
+                raise erro_400(
+                    "pacote_obrigatorio",
+                    "esta proposta é de fee mensal: o pacote de horas é o que "
+                    "está sendo vendido e não pode ficar vazio")
+            escopo.pop("evolucao_solicitada", None)
+        else:
+            try:
+                horas = int(str(bruta).strip())
+            except (ValueError, TypeError):
+                raise erro_400("horas_invalidas",
+                               f"não entendi as horas do pacote: {bruta!r}") from None
+            if horas < 1:
+                raise erro_400("horas_invalidas", "o pacote precisa de ao menos 1 hora")
+            escopo["evolucao_solicitada"] = {"ativa": True, "horas_mes": horas}
+
     caminho_escopo.write_text(
         json.dumps(escopo, ensure_ascii=False, indent=2) + "\n", "utf-8"
     )

@@ -325,3 +325,43 @@ id = "recomendado-no-ultimo-degrau"
 horas_recomendadas = 70
 espera_horas = [30, 40, 60]
 espera_recomendado = 60
+
+# -----------------------------------------------------------------------------
+# ROTEAMENTO do fee mensal dentro de uma proposta de IMPLANTAÇÃO
+#
+# Não testam aritmética — testam a bifurcação. Numa implantação, o bloco de fee
+# mensal pode vir de dois lugares que produzem números diferentes para o mesmo
+# projeto, e mandar o errado para o cliente é o erro que esta seção existe para
+# impedir:
+#
+#   sem `evolucao_solicitada.ativa`  -> regra C, a alternativa convertida (1,3×)
+#   com `evolucao_solicitada.ativa`  -> o pacote contratado, direto da tabela
+#
+# O par abaixo é o mesmo projeto de R$ 36.000 nos dois caminhos.
+# -----------------------------------------------------------------------------
+
+[[roteamento_evolucao]]
+id = "implantacao-com-acompanhamento-contratado"
+descricao = "Pacote combinado na reunião vence a conversão automática"
+valor_fechado = 36000
+evolucao_ativa = true
+horas_mes = 20
+espera_origem = "contratada"
+espera_horas = 20
+espera_valor_hora = 210
+espera_mensal = 4200.00
+espera_fidelidade = 6
+espera_alerta = "EVOLUCAO_CONTRATADA_EM_IMPLANTACAO"
+# O que a regra C daria para o mesmo total — e que NÃO pode sair aqui.
+recusa_mensal = 3960.00
+
+[[roteamento_evolucao]]
+id = "implantacao-sem-pedido-cai-na-conversao"
+descricao = "Sem pacote contratado nada muda: a regra C continua valendo"
+valor_fechado = 36000
+evolucao_ativa = false
+espera_origem = "alternativa_convertida"
+espera_horas = 18
+espera_valor_hora = 220
+espera_mensal = 3960.00
+espera_fidelidade = 12

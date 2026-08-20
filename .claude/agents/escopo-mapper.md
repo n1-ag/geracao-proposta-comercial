@@ -47,6 +47,15 @@ Leia, nesta ordem:
 5. Numa proposta de **evolução**, calcule o pacote recomendado
    (`evolucao_solicitada.horas_mes`) a partir do volume de demandas recorrentes
    levantado, e **mostre o raciocínio** na seção de lacunas ou observações.
+6. Numa proposta de **implantação**, `evolucao_solicitada` é opcional e muda o
+   documento. Deixe como está (ou `ativa: false`) e o PDF oferece a alternativa
+   em fee mensal, calculada a partir do valor do projeto — o comportamento
+   padrão. Marque `ativa: true` com `horas_mes` **só quando a reunião pediu
+   acompanhamento contínuo e disse o tamanho do pacote**: aí o fee deixa de ser
+   alternativa ao projeto e vira o acompanhamento que roda depois do go-live.
+   Sem as duas coisas ditas, não marque — registre em Lacunas que houve interesse
+   em acompanhamento e o pacote está a definir. Marcar por conta própria cria uma
+   mensalidade que ninguém acordou; deixar de marcar só mantém o padrão.
 
 ## Ajustes do checkpoint (`proposta/ajustes.md`)
 

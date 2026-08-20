@@ -95,3 +95,21 @@ um `opcao-card.html` por formato, na ordem do JSON. Valor de cada cartão é
 
 Sem selo, sem hora, sem destacar a principal. O exemplar
 `templates/exemplo/implantacao-shopify.html` já traz a seção montada — siga-o.
+
+## A seção 04b — leia `evolucao.origem` antes de escolher o arquivo
+
+Duas formas do mesmo bloco, e o arquivo é diferente conforme o que o cliente
+contratou:
+
+- `evolucao.origem == "alternativa_convertida"` → `04b-alternativa-evolucao.html`.
+  Um preço único (`.price`), porque é **outra forma de pagar o mesmo projeto**.
+- `evolucao.origem == "contratada"` (a implantação vendeu acompanhamento junto,
+  não a conversão automática) → `04b-alternativa-planos.html`. Três cartões
+  (`.planos`, com `plano-card.html`), porque o cliente escolheu um pacote entre
+  opções — é **trabalho a mais**, não outra forma de pagar o mesmo. O card
+  marcado `recomendado` é o que a reunião pediu; os outros dois são a escada em
+  volta, exatamente como em `evolucao.opcoes[]`.
+
+Não confunda com a seção 04 da proposta que **é** de evolução — essa usa sempre
+`04-investimento-evolucao.html`, com ou sem pacote contratado. A 04b só existe
+dentro de uma proposta de implantação.

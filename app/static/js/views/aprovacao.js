@@ -217,6 +217,18 @@ function editorEscopo(impl, escopo, somenteLeitura) {
           implantada, então não há valor base. Vazio usa o da plataforma.
         </span>
       </label>
+      <label class="campo">
+        <span class="campo-rotulo">Acompanhamento (h/mês)</span>
+        <input type="text" id="ed-evolucao-horas" inputmode="numeric"
+               value="${escopo.evolucao_solicitada?.ativa ? esc(String(escopo.evolucao_solicitada.horas_mes ?? '')) : ''}"
+               placeholder="alternativa convertida">
+        <span class="campo-dica">
+          Preencha só quando o cliente <strong>contratou</strong> um pacote mensal
+          junto do projeto: o valor sai da tabela de faixas e o PDF passa a
+          vendê-lo como o acompanhamento que roda depois do go-live. Vazio mantém
+          a alternativa em fee mensal calculada sobre o valor do projeto.
+        </span>
+      </label>
     </div>
 
     <div class="tabela-rolavel">
@@ -610,7 +622,8 @@ function ligar(raiz, id) {
     editor.addEventListener('input', (e) => {
       if (e.target.classList.contains('ed-rotulo')
           || e.target.classList.contains('ed-valor')
-          || e.target.id === 'ed-valor-base') {
+          || e.target.id === 'ed-valor-base'
+          || e.target.id === 'ed-evolucao-horas') {
         estadoEd.textContent = 'alterado — clique em Recalcular';
       }
     });
@@ -652,6 +665,7 @@ function ligar(raiz, id) {
           itens: linhasAtuais(),
           plataforma: editor.querySelector('#ed-plataforma')?.value || '',
           valor_base_override: editor.querySelector('#ed-valor-base')?.value.trim() || null,
+          evolucao_horas_mes: editor.querySelector('#ed-evolucao-horas')?.value.trim() || null,
         });
         estadoEd.textContent = `total: ${r.total_fmt}`;
         location.reload();
@@ -723,6 +737,8 @@ function ligar(raiz, id) {
       case 'rotulo_item':  return `${esc(o.nome)} → aparece como «<strong>${esc(o.rotulo)}</strong>»`;
       case 'valor_base':   return `Valor base → <strong>${v(o.valor)}</strong>`;
       case 'prazo':        return `Prazo → <strong>${o.min} a ${o.max} semanas</strong>`;
+      case 'evolucao_horas': return `Acompanhamento → <strong>${o.horas} h/mês</strong> contratadas`
+        + '<span class="dim"> — no lugar da alternativa convertida</span>';
       case 'texto_livre':  return `<strong>Vai para o agente:</strong> ${esc(o.instrucao || '')}`;
       default:             return esc(o.tipo);
     }

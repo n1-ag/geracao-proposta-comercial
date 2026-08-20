@@ -154,6 +154,13 @@ uma linha da outra.
   Ausente, herda de `design_fornecido_pelo_cliente`.
 - Numa proposta `evolucao`, `evolucao_solicitada.horas_mes` é obrigatório: é o
   pacote recomendado, derivado do volume de demandas recorrentes levantado.
+- Numa proposta `implantacao`, `evolucao_solicitada` é **opcional** e muda o
+  bloco de fee mensal do documento. Omitido (ou `ativa: false`), vale a regra C:
+  o PDF oferece a alternativa convertida, "em vez de" o projeto. Com
+  `ativa: true` e `horas_mes`, o fee passa a ser o acompanhamento **contratado**,
+  que roda depois do go-live — "além de" o projeto. Só marque `ativa` quando a
+  reunião tiver pedido acompanhamento contínuo *e* dito o tamanho do pacote;
+  inventar o segundo transforma a alternativa numa cobrança que ninguém acordou.
 - `prazo_semanas` é **opcional** e só existe para um caso: o prazo foi
   **prometido na reunião**. Uma proposta que contradiz o que foi dito ao vivo
   custa caro. Omitido, o prazo é derivado das horas do escopo. Declarado, exige

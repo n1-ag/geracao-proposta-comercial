@@ -8,6 +8,27 @@
 Uma seção por bloco do PDF. **Cada uma com limite de caracteres declarado** — o
 limite não é sugestão: estourar provoca transbordo e o render recusa o PDF.
 
+## `02-escopo.md` e `03-orcamento.md` são insumo, não texto pronto
+
+Você lê os dois inteiros, mas nem tudo neles é para o cliente ver.
+
+`observacao` de cada item, a coluna de justificativa dos itens fora do
+catálogo, o critério de complexidade aplicado e a seção `## Lacunas` são **notas
+de auditoria interna** — registradas para quem decide o preço e quem revisa o
+checkpoint, não para quem recebe a proposta. Elas explicam *por que classificamos
+assim*; a proposta só diz *o que entregamos*.
+
+O sintoma de transcrever direto é reconhecível: a frase cita mecânica nossa
+("entrou fora do catálogo padrão, com estimativa própria"), ou admite que algo
+"ainda não foi definido/confirmado/levantado" em vez de descrever a entrega pelo
+que ela cobre. Se a frase que você está escrevendo não faria sentido dita em voz
+alta para o cliente, ela é insumo, não é conteúdo — reescreva a partir do que
+está decidido.
+
+Uma lacuna sobre algo que muda o valor não desaparece — vira **premissa** (seção
+05), redigida como condição do projeto, não como confissão de incerteza. Ver
+`steering/tom-de-voz.md` para o par de exemplos.
+
 ## Seções e limites
 
 ### `## CAPA`
@@ -100,12 +121,46 @@ digitado.
 
 ### `## 04B ALTERNATIVA` *(só implantação, e só se `evolucao.aplicavel`)*
 - `intro` 300–460 caracteres · `price_nota` 200–320
-- tabela de 5 a 6 linhas · 1 card de comparação (até 620 caracteres)
+- tabela de 5 a 6 linhas · 1 card (até 620 caracteres)
+
+**Leia `evolucao.origem` antes de escrever esta seção. Ela decide o que a seção
+é, e qual template a fase 05 escolhe — não é só questão de tom.**
+
+- `"alternativa_convertida"` — o comportamento de sempre: é **outra forma de
+  pagar o mesmo projeto**. Vai para `04b-alternativa-evolucao.html`, com um
+  preço único. Escreva como escolha entre dois caminhos, compare os dois
+  valores, e o card é de comparação. Use `price_tag`.
+- `"contratada"` — é **trabalho a mais, que começa depois do go-live**: o
+  projeto entrega, e o acompanhamento continua dali, no pacote que a reunião
+  combinou. Vai para `04b-alternativa-planos.html`, com **três cartões de
+  pacote** (`evolucao.opcoes[]`) — o mesmo card de plano da proposta de
+  evolução pura, não um preço único. Aqui a seção **não é uma alternativa**, e
+  escrevê-la como alternativa vende o oposto do que foi combinado — oferece ao
+  cliente sair do projeto que ele já fechou.
+  - Nunca "em vez de", "ou então", "como alternativa ao investimento".
+  - **Não compare com o valor do projeto.** Um é fechado, o outro é mensal
+    recorrente; lado a lado, o mensal parece um desconto do projeto. Os três
+    cartões comparam pacotes de horas entre si, nunca com `implantacao.total_fmt`.
+  - Prefira "depois do go-live", "a partir da entrega", "o mês a mês que
+    sustenta o que foi construído".
+  - Não há `price_tag` nesta variante — os três cartões falam por si. O card do
+    fim deixa de ser comparação e passa a ser o que entra no pacote mensal.
+  - `ALT_TABELA_TITULO` segue a mesma voz: acompanhamento, não alternativa.
+
+O nome do bloco é histórico em ambos os casos, mas **o template não é o mesmo**
+— a fase 05 escolhe entre os dois arquivos pelo `evolucao.origem`. Escreva o
+texto pensando em qual dos dois vai receber.
 
 ### `## 05 PREMISSAS`
 - 5 premissas de até 220 caracteres
 - bloco de transição/migração (condicional) · card de janela (condicional)
 - `nao_contemplado`: 4 itens de até 130 caracteres
+- **É aqui que uma lacuna que afeta o valor ou o escopo vira texto do cliente.**
+  Não como "isso ainda não foi definido", mas como a condição que protege o
+  projeto: quem define, quando, e o que acontece se mudar. Prefira o padrão
+  canônico de `dados/biblioteca-textos.md` (ex.: "o pacote mensal é distribuído
+  entre as frentes conforme a priorização definida em conjunto a cada ciclo") a
+  escrever a incerteza do zero.
 
 ### `## FECHAMENTO`
 - `headline`: até 2 linhas de 30 caracteres
@@ -125,3 +180,8 @@ digitado.
 5. Siga `steering/tom-de-voz.md`.
 6. Se um limite não couber com o conteúdo necessário, **avise no fim do
    artefato** em vez de estourar em silêncio.
+7. **Nenhuma lacuna, observação de auditoria ou justificativa de catalogação
+   chega ao cliente em forma reconhecível.** O que muda o valor vira premissa
+   (seção 05); o resto orienta a escolha das palavras, mas não aparece. Ver a
+   seção acima, "`02-escopo.md` e `03-orcamento.md` são insumo, não texto
+   pronto". `auditar.py numeros` reprova frases desta família.
