@@ -93,16 +93,37 @@ def _validar(itens: list, cat: dict) -> list:
 
         item = cat[cid]
         complexidade = (bruto.get("complexidade") or "").strip().lower() or None
+        fixo = _valor_fixo(bruto, item)
 
-        # Item de escopo padrão ou de regra especial não tem complexidade; os
-        # demais precisam de uma válida, senão `auditar.py escopo` reprova.
-        if not item.get("no_escopo_padrao") and not item.get("regra_especial"):
+        # Decisões manuais tomadas no ajuste. O editor precisa **carregá-las
+        # adiante**: descartá-las fazia um clique em Recalcular apagar em
+        # silêncio horas fixadas e itens marcados como inclusos — o comercial
+        # mexia na quantidade de uma linha e perdia a decisão de outra.
+        preservado = {}
+        if bruto.get("horas") not in (None, ""):
+            try:
+                preservado["horas"] = int(bruto["horas"])
+            except (TypeError, ValueError):
+                raise erro_400("horas_invalidas",
+                               f"horas inválidas em '{item['nome']}'") from None
+        if bruto.get("incluso_no_padrao"):
+            preservado["incluso_no_padrao"] = True
+
+        # Complexidade só é exigida de quem depende da faixa do catálogo para
+        # saber o esforço. Item com horas ou valor fixados não depende, e item
+        # marcado como incluso custa zero — cobrar complexidade deles recusava
+        # justamente as linhas que alguém já tinha resolvido à mão.
+        dispensa = (item.get("no_escopo_padrao") or item.get("regra_especial")
+                    or preservado.get("horas") is not None
+                    or preservado.get("incluso_no_padrao")
+                    or "valor_fixo" in fixo)
+        if not dispensa:
             if complexidade not in COMPLEXIDADES:
                 raise erro_400(
                     "complexidade_invalida",
                     f"'{item['nome']}' precisa de complexidade baixa, media ou alta",
                 )
-        else:
+        elif item.get("no_escopo_padrao") or item.get("regra_especial"):
             complexidade = None
 
         try:
@@ -127,7 +148,8 @@ def _validar(itens: list, cat: dict) -> list:
             # O nome que o cliente lê. Sem ele, itens repetidos viram linhas
             # idênticas no PDF com preços diferentes.
             "rotulo": (bruto.get("rotulo") or "").strip(),
-            **_valor_fixo(bruto, item),
+            **fixo,
+            **preservado,
             "design_pela_n1": bool(bruto.get("design_pela_n1", True)),
             "origem": origem,
             "observacao": (bruto.get("observacao") or "").strip(),

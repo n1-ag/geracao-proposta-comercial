@@ -156,7 +156,9 @@ function editorEscopo(impl, escopo, somenteLeitura) {
     const opcoes = ['baixa', 'media', 'alta']
       .map((c) => `<option value="${c}" ${i.complexidade === c ? 'selected' : ''}>${c}</option>`)
       .join('');
-    return `<tr data-item="${k}" data-id="${esc(i.catalogo_id)}">
+    return `<tr data-item="${k}" data-id="${esc(i.catalogo_id)}"
+      ${i.horas != null ? `data-horas="${i.horas}"` : ''}
+      ${i.incluso_no_padrao ? 'data-incluso="1"' : ''}>
       <td>
         <input class="ed-rotulo" type="text" value="${esc(i.rotulo || '')}"
                placeholder="${esc(cotada.nome || i.catalogo_id)}"
@@ -583,6 +585,10 @@ function ligar(raiz, id) {
         catalogo_id: tr.dataset.id,
         rotulo: tr.querySelector('.ed-rotulo')?.value.trim() || '',
         valor_fixo: tr.querySelector('.ed-valor')?.value.trim() || null,
+        // Decisões vindas do ajuste viajam de volta intactas: sem isto, um
+        // clique em Recalcular apagaria horas fixadas e itens inclusos.
+        horas: tr.dataset.horas || null,
+        incluso_no_padrao: tr.dataset.incluso === '1',
         complexidade: tr.querySelector('.ed-complexidade')?.value || null,
         quantidade: Number(tr.querySelector('.ed-qtd')?.value || 1),
       }));
