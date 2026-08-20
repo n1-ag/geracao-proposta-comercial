@@ -673,7 +673,7 @@ function ligar(raiz, id) {
 
   // Duas etapas: ler e mostrar, depois aplicar o que foi confirmado. A primeira
   // não muda nada — é o que permite discordar antes de o orçamento se mexer.
-  const painel = raiz.querySelector('#interpretacao');
+  const painelOps = raiz.querySelector('#interpretacao');
 
   const descrever = (o) => {
     const v = (x) => (x ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -713,7 +713,7 @@ function ligar(raiz, id) {
       d.recusadas ? `${d.recusadas} não entendida(s)` : '',
     ].filter(Boolean).join(' · ');
 
-    painel.innerHTML = `
+    painelOps.innerHTML = `
       <h3 class="op-titulo">Entendi isto</h3>
       <div class="ops">${linhas}</div>
       <div class="linha" style="margin-top:14px;align-items:center">
@@ -721,8 +721,8 @@ function ligar(raiz, id) {
         <button class="btn" id="btn-refazer-leitura">Reescrever o pedido</button>
         <span class="dim pequeno">${esc(resumo)}</span>
       </div>`;
-    painel.hidden = false;
-    painel.dataset.ops = JSON.stringify(d.operacoes);
+    painelOps.hidden = false;
+    painelOps.dataset.ops = JSON.stringify(d.operacoes);
   };
 
   raiz.querySelector('#btn-enviar-ajuste').addEventListener('click', async (e) => {
@@ -742,16 +742,16 @@ function ligar(raiz, id) {
     }
   });
 
-  painel?.addEventListener('click', async (ev) => {
+  painelOps?.addEventListener('click', async (ev) => {
     if (ev.target.id === 'btn-refazer-leitura') {
-      painel.hidden = true;
+      painelOps.hidden = true;
       raiz.querySelector('#texto-ajuste').focus();
       return;
     }
     if (ev.target.id !== 'btn-aplicar-ajuste') return;
 
-    const todas = JSON.parse(painel.dataset.ops || '[]');
-    const escolhidas = [...painel.querySelectorAll('.op-chk:checked')]
+    const todas = JSON.parse(painelOps.dataset.ops || '[]');
+    const escolhidas = [...painelOps.querySelectorAll('.op-chk:checked')]
       .map((c) => todas[Number(c.dataset.k)]);
     if (!escolhidas.length) return mostrarErro('Marque ao menos uma operação.');
 
