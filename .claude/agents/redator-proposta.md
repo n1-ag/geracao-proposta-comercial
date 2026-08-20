@@ -85,5 +85,9 @@ curto, um resumo do que aquele formato resolve, e 3 a 5 bullets.
 Nome e valor vêm de `implantacao.opcoes[]` — não invente formato e não reordene.
 Nada de hora nos cartões.
 
+**A forma está no contrato 04, escrita por extenso.** Siga o esqueleto de lá e
+comece a escrever: não existe exemplo desta seção em proposta antiga, e procurar
+um pelo repositório é como uma fase inteira já morreu de timeout.
+
 Não trate nenhum como recomendado: `principal` é referência interna, não
 destaque comercial.

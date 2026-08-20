@@ -55,6 +55,37 @@ mostrá-la.
 - Nome e valor de cada formato vêm de `implantacao.opcoes[]`. Não invente
   formato, não reordene: a ordem do JSON é a ordem do documento.
 
+A forma, literal — **é isto que você escreve**, sem procurar exemplo em outro
+lugar:
+
+```markdown
+## 02B FORMATOS
+
+**intro:** A conversa apontou três caminhos, e nenhum é meio caminho: cada um
+resolve um problema inteiro, num recorte diferente. A tabela da página anterior
+detalha o formato completo; os outros dois são recortes dele.
+
+### Formato 1 — «orc:implantacao.opcoes.0.nome»
+- **valor:** `«orc:implantacao.opcoes.0.total_fmt»`
+- **resumo:** Aporte dos dados para a nova plataforma, com validação técnica do
+  que já foi construído. *(118)*
+- Migração do catálogo *(21)*
+- Migração de clientes e pedidos *(30)*
+- Redirects e conferência de slugs *(33)*
+
+### Formato 2 — «orc:implantacao.opcoes.1.nome»
+- **valor:** `«orc:implantacao.opcoes.1.total_fmt»`
+- **resumo:** …
+- …
+
+**nota:** Os formatos são cumulativos: o maior contém os menores. Trocar de
+formato antes do kick-off é recotar a diferença, não refazer a proposta.
+```
+
+Um `### Formato N` por item de `opcoes[]`, na ordem. O número entre parênteses é
+a contagem de caracteres, como nas outras seções. Valor sempre por token — nunca
+digitado.
+
 ### `## 03 CONDUCAO`
 - `intro`: até 240 caracteres
 - 5 etapas de fluxo; título ≤ 16 caracteres, texto ≤ 46

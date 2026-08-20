@@ -81,7 +81,12 @@ TETO_USD_FASE = float(os.environ.get("N1_TETO_USD", "8.0"))
 TIMEOUTS = {
     "01": 20 * 60,
     "02": 20 * 60,
-    "04": 20 * 60,
+    # A 04 escreve o documento inteiro e é a fase mais longa: 11 min de média em
+    # opus, e a primeira rodada em sonnet com uma seção nova bateu nos 20 e
+    # morreu sem ter escrito uma linha. A causa era falta de exemplo, já
+    # corrigida — a folga aqui é para o susto não se repetir enquanto o modelo
+    # novo se acomoda.
+    "04": 28 * 60,
     "05": 25 * 60,
     "06": 15 * 60,
 }
