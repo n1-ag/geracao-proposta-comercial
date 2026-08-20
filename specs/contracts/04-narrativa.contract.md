@@ -151,6 +151,13 @@ O nome do bloco é histórico em ambos os casos, mas **o template não é o mesm
 — a fase 05 escolhe entre os dois arquivos pelo `evolucao.origem`. Escreva o
 texto pensando em qual dos dois vai receber.
 
+**Isto tem efeito na seção 05, mais adiante.** Com `origem == "contratada"`, o
+item padrão "Sustentação após o go-live — coberta pelo contrato de evolução,
+orçado à parte" da `## 05 PREMISSAS` fica **contraditório**: o acompanhamento
+não está "a orçar depois", já foi cotado aqui. Ver a nota em
+`dados/biblioteca-textos.md §Não contemplado — implantação` antes de escrever
+`nao_contemplado`.
+
 ### `## 05 PREMISSAS`
 - 5 premissas de até 220 caracteres
 - bloco de transição/migração (condicional) · card de janela (condicional)

@@ -63,7 +63,21 @@ condição vira cláusula, nunca confissão de indefinição.
 
 ## Não contemplado — implantação
 
-- Sustentação após o go-live — coberta pelo contrato de evolução, orçado à parte.
+**Leia `evolucao.origem` antes de usar o item abaixo — ele tem duas versões, e
+usar a errada contradiz outra página da mesma proposta.**
+
+- `evolucao.origem == "alternativa_convertida"` (o caso comum): "Sustentação
+  após o go-live — coberta pelo contrato de evolução, orçado à parte."
+- `evolucao.origem == "contratada"` (a implantação já vende o pacote mensal,
+  seção 04b/06): **não use este item.** O acompanhamento não está "fora do
+  escopo, a orçar depois" — já foi cotado e detalhado duas páginas antes. Se a
+  proposta encontrou esta situação na primeira revisão (Reed7, 2026-08-20): o
+  item apareceu verbatim em "Não contemplado" enquanto a página do
+  acompanhamento mensal já mostrava pacote, valor e fidelidade fechados — o
+  revisor pegou a contradição e a fase 04 precisou ser refeita. Se quiser
+  registrar o acompanhamento aqui mesmo assim, ligue as duas páginas
+  explicitamente: "O acompanhamento mensal depois do go-live é o contrato
+  detalhado na seção Acompanhamento mensal — não uma cotação em aberto."
 
 ## Não contemplado — evolução
 
