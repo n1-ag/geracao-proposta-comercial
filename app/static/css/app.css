@@ -1386,3 +1386,27 @@ body.pagina-login {
   font-size: 13px;
   text-align: center;
 }
+
+/* Cabeçalho do editor de escopo: plataforma e valor base. Ficam acima da
+   tabela porque valem para a proposta inteira, não para uma linha. */
+.cabecalho-escopo {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.cabecalho-escopo .campo { min-width: 210px; margin: 0; }
+.cabecalho-escopo select,
+.cabecalho-escopo input {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--sup-4);
+  background: var(--sup-1);
+  color: var(--texto);
+  font: inherit;
+  font-size: 13px;
+}
+.cabecalho-escopo .campo-dica { display: block; margin-top: 5px; max-width: 340px; }

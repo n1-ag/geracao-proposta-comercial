@@ -244,6 +244,32 @@ def editar_escopo(req, pid):
     depois = _validar(corpo.get("itens") or [], cat)
 
     escopo["itens"] = depois
+
+    # Cabeçalho do escopo: a plataforma decide o valor base, e o valor base pode
+    # ser substituído. Num projeto pontual — uma correção, uma lista de tarefas —
+    # não há plataforma sendo implantada e o valor base não deveria existir.
+    if "plataforma" in corpo:
+        nova = (corpo.get("plataforma") or "").strip()
+        if nova and nova not in cfg.PLATAFORMAS:
+            raise erro_400("plataforma_invalida",
+                           f"'{nova}' não é uma das plataformas cotadas: "
+                           f"{', '.join(cfg.PLATAFORMAS)}")
+        if nova:
+            escopo["plataforma"] = nova
+
+    if "valor_base_override" in corpo:
+        bruta = corpo.get("valor_base_override")
+        if bruta in (None, ""):
+            escopo.pop("valor_base_override", None)
+        else:
+            import sys as _sys
+            _sys.path.insert(0, str(cfg.SCRIPTS))
+            from precificar import ler_valor
+            try:
+                escopo["valor_base_override"] = float(ler_valor(bruta))
+            except (ValueError, TypeError):
+                raise erro_400("valor_invalido",
+                               f"não entendi o valor base: {bruta!r}") from None
     caminho_escopo.write_text(
         json.dumps(escopo, ensure_ascii=False, indent=2) + "\n", "utf-8"
     )

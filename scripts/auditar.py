@@ -218,6 +218,24 @@ def cmd_escopo(args) -> int:
         else:
             r.passou()
 
+    # Plataforma fora da lista mata a fase 03 com um `SystemExit` seco, depois de
+    # quinze minutos de agente já gastos. A Ikebana está mesmo em Medusa, o
+    # agente leu certo — o que faltava era alguém dizer que o preço só existe
+    # para as seis plataformas cotadas, e dizer isso aqui, onde ainda dá para
+    # corrigir sem refazer nada.
+    if esc.get("modelo_principal") == "implantacao":
+        conhecidas = list(dados.precos["implantacao"]["plataformas"])
+        plat = esc.get("plataforma")
+        if plat not in conhecidas:
+            r.falha(
+                f"plataforma '{plat}' não tem preço em dados/precos.toml. "
+                f"As cotadas são: {', '.join(conhecidas)}. Escolha a mais próxima "
+                f"no editor de escopo, ou acrescente a nova ao `precos.toml` com "
+                f"o valor base dela."
+            )
+        else:
+            r.passou()
+
     # Campos de decisão humana sem rastro de quem decidiu: daqui a três meses
     # ninguém sabe se as 24h foram negociadas ou se o agente escorregou.
     for i in esc.get("itens", []):

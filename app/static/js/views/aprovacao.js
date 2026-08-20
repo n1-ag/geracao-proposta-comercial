@@ -196,6 +196,24 @@ function editorEscopo(impl, escopo, somenteLeitura) {
       no escopo.
     </p>
 
+    <div class="cabecalho-escopo">
+      <label class="campo">
+        <span class="campo-rotulo">Plataforma</span>
+        <select id="ed-plataforma">${PLATAFORMAS.map((p) =>
+          `<option value="${p}" ${escopo.plataforma === p ? 'selected' : ''}>${p}</option>`).join('')}</select>
+      </label>
+      <label class="campo">
+        <span class="campo-rotulo">Valor base</span>
+        <input type="text" id="ed-valor-base" inputmode="decimal"
+               value="${escopo.valor_base_override != null ? esc(brl(escopo.valor_base_override)) : ''}"
+               placeholder="${esc(impl.valor_base_fmt || '—')} (da plataforma)">
+        <span class="campo-dica">
+          Digite <strong>0</strong> em projeto pontual: não há plataforma sendo
+          implantada, então não há valor base. Vazio usa o da plataforma.
+        </span>
+      </label>
+    </div>
+
     <div class="tabela-rolavel">
       <table class="lista" id="tab-editor">
         <thead><tr>
@@ -582,7 +600,8 @@ function ligar(raiz, id) {
     // o rótulo e clica direto em Recalcular não vê que havia algo pendente.
     editor.addEventListener('input', (e) => {
       if (e.target.classList.contains('ed-rotulo')
-          || e.target.classList.contains('ed-valor')) {
+          || e.target.classList.contains('ed-valor')
+          || e.target.id === 'ed-valor-base') {
         estadoEd.textContent = 'alterado — clique em Recalcular';
       }
     });
@@ -620,7 +639,11 @@ function ligar(raiz, id) {
       e.target.disabled = true;
       estadoEd.textContent = 'recalculando…';
       try {
-        const r = await api.post(`/api/propostas/${id}/escopo`, { itens: linhasAtuais() });
+        const r = await api.post(`/api/propostas/${id}/escopo`, {
+          itens: linhasAtuais(),
+          plataforma: editor.querySelector('#ed-plataforma')?.value || '',
+          valor_base_override: editor.querySelector('#ed-valor-base')?.value.trim() || null,
+        });
         estadoEd.textContent = `total: ${r.total_fmt}`;
         location.reload();
       } catch (err) {
@@ -907,6 +930,8 @@ function ligarChat(raiz, id) {
 // e nenhum foi incorporado: o caminho era um comando de terminal. Aqui o Sonnet
 // propõe a ficha, uma pessoa revisa, e o script grava — o catálogo é a fonte da
 // verdade de preço, e ninguém escreve nele sem passar por gente.
+const PLATAFORMAS = ['shopify', 'vtex', 'wake', 'nuvemshop', 'wordpress', 'template-html'];
+
 const CATEGORIAS = ['conteudo', 'componente', 'integracao', 'migracao', 'seo', 'apoio'];
 
 function faixa(rotulo, chave, v) {

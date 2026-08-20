@@ -74,6 +74,10 @@ pendente, o que mudou no mapeamento e por quê; se não foi aplicado, o motivo.
 ## Regras
 - **Proibido escrever `R$`** em qualquer lugar. `auditar.py escopo` reprova.
 - **Proibido somar horas.** O total é do script.
+- **A plataforma sai de uma lista fechada**: shopify, vtex, wake, nuvemshop,
+  wordpress, template-html. É onde há valor base. Stack fora dela — Medusa,
+  Magento, headless próprio — não vira plataforma nova: escolha a mais próxima,
+  registre a stack real em Lacunas, e siga. Inventar o nome derruba a fase 03.
 - **Proibido escrever `horas`, `valor_fixo`, `incluso_no_padrao` ou
   `valor_base_override`.**
   São campos de decisão humana, gravados pelo app quando o comercial ajusta no

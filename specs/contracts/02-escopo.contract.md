@@ -12,6 +12,12 @@ do catálogo; **não soma, não multiplica, não precifica.**
 
 1. Frontmatter.
 2. **Modelo e plataforma** — confirmados e travados.
+
+**A lista de plataformas é fechada**, porque `precos.toml` só tem valor base para
+essas seis. Cliente em stack fora da lista — Medusa, Magento, headless próprio —
+não vira plataforma nova por conta do agente: escolha a mais próxima (front-end
+sob medida costuma ser `template-html`), diga em Lacunas qual é a stack real, e
+deixe a decisão de criar plataforma para quem define preço.
 3. **Escopo padrão incluso no valor base** — a lista, marcada "sem custo adicional".
 4. **Tabela de itens cotados** — colunas: `ID do catálogo | Item | Complexidade |
    Qtd | Horas de referência | Origem [E##] | Observação`. A coluna de horas é
@@ -39,6 +45,7 @@ do catálogo; **não soma, não multiplica, não precifica.**
   "modelo_principal": "implantacao | evolucao",
   "natureza": "migracao | novo | evolucao",
   "plataforma": "shopify | vtex | wake | nuvemshop | wordpress | template-html",
+  // fechada: só existe preço para estas seis
   "design_fornecido_pelo_cliente": false,
   "evolucao_solicitada": { "ativa": false, "horas_mes": null },
   "prazo_semanas": { "min": 6, "max": 7, "origem": ["E71"], "justificativa": "" },
